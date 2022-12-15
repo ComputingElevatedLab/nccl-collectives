@@ -1,3 +1,4 @@
+#include <chrono>
 #include <iostream>
 
 #include <mpi.h>
@@ -26,7 +27,13 @@ int main(int argc, char** argv) {
   }
 
   // Use MPI_Alltoall to send and receive each rank
+  auto start = std::chrono::high_resolution_clock::now();
   MPI_CALL(MPI_Alltoall(send_data, 1, MPI_INT, recv_data, 1, MPI_INT, MPI_COMM_WORLD));
+  auto stop = std::chrono::high_resolution_clock::now();
+
+  // Compute elapsed time
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+  std::cout << "Process " << rank << " elapsed all-to-all time: " << duration.count() << " ms" << std::endl;
 
   // Verify that all processes have the same thing in their recieve buffer
   std::cout << "Process " << rank << " received data: [";

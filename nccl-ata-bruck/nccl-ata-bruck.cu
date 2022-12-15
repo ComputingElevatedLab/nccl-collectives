@@ -13,11 +13,12 @@ int main(int argc, char* argv[])
     // Initialize MPI
     MPI_CALL(MPI_Init(&argc, &argv));
 
-    // Set MPI rank and size
-    int rank;
+    // Set MPI size and rank
     int size;
-    MPI_CALL(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
+    int rank;
     MPI_CALL(MPI_Comm_size(MPI_COMM_WORLD, &size));
+    MPI_CALL(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
+    
 
     // Figure out what host the current MPI process is running on
     uint64_t hostHashs[size];
@@ -67,9 +68,24 @@ int main(int argc, char* argv[])
     ncclComm_t comm;
     NCCL_CALL(ncclCommInitRank(&comm, size, id, rank));
 
-    // Perform allreduce and synchronize
-    ncclBruck(1, (char *) d_send_data, size, ncclInt, (char *) d_recv_data, size, ncclInt, comm, stream, rank, size);
-    CUDA_CALL(cudaStreamSynchronize(stream));
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    // Perform all-to-all to send and receive each rank
+    cudaEventRecord(start, 0);
+    ncclBruck(2, (char *) d_send_data, 1, ncclInt, (char *) d_recv_data, 1, ncclInt, comm, stream, rank, size);
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+
+    // Compute elapsed time
+    float elapsedTime;
+    cudaEventElapsedTime(&elapsedTime, start, stop);
+    std::cout << "Process " << rank << " elapsed all-to-all time: " << elapsedTime << " ms" << std::endl;
+
+    // Destroy CUDA events
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 
     // Verify that all processes have the same thing in their recieve buffer
     CUDA_CALL(cudaMemcpy(h_recv_data, d_recv_data, size * sizeof(int), cudaMemcpyDeviceToHost));

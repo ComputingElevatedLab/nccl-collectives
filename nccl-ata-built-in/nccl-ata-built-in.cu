@@ -67,9 +67,29 @@ int main(int argc, char* argv[])
     ncclComm_t comm;
     NCCL_CALL(ncclCommInitRank(&comm, size, id, rank));
 
-    // Perform allreduce and synchronize
-    NCCL_CALL(ncclAllReduce((const void *) d_send_data, (void *) d_recv_data, size, ncclFloat, ncclSum, comm, stream));
-    CUDA_CALL(cudaStreamSynchronize(stream));
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    // Perform all-to-all to send and receive each rank
+    cudaEventRecord(start, 0);
+    ncclGroupStart();
+    for (int i = 0; i < size; i++) {
+        ncclSend((void *) &d_send_data[i], 1, ncclInt, i, comm, stream);
+        ncclRecv((void *) &d_recv_data[i], 1, ncclInt, i, comm, stream);
+    }
+    ncclGroupEnd();
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+
+    // Compute elapsed time
+    float elapsedTime;
+    cudaEventElapsedTime(&elapsedTime, start, stop);
+    std::cout << "Process " << rank << " elapsed all-to-all time: " << elapsedTime << " ms" << std::endl;
+
+    // Destroy CUDA events
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 
     // Verify that all processes have the same thing in their recieve buffer
     CUDA_CALL(cudaMemcpy(h_recv_data, d_recv_data, size * sizeof(int), cudaMemcpyDeviceToHost));
