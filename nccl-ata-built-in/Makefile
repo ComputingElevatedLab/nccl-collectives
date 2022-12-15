@@ -1,9 +1,8 @@
 TARGET = nccl-ata-built-in
 COMMON = ../common
-CUDA_PATH ?= /opt/cuda
 NVCC_FLAGS += -dlto -lineinfo
 LDFLAGS = -lmpi -lnccl
-SRC = $(TARGET).cu $(COMMON)/error-catch.cu
+SRC = $(TARGET).cu
 
 build:
 	nvcc $(NVCC_FLAGS) $(SRC) -o $(TARGET).out $(LDFLAGS)

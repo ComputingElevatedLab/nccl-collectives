@@ -1,17 +1,19 @@
 TARGET = nccl-ata-bruck
 COMMON = ../common
-CUDA_PATH ?= /opt/cuda
 NVCC_FLAGS += -dlto -lineinfo
 LDFLAGS = -lmpi -lnccl
-SRC = nccl-ata-bruck.cu $(COMMON)/error-catch.cu
+SRC = $(TARGET).cu
 
-build: Makefile nccl-ata-bruck.cu
+build: Makefile
 	nvcc $(NVCC_FLAGS) $(SRC) -o $(TARGET).out $(LDFLAGS)
 
 test:
 	./$(TARGET).out
 
 run: build test
+
+debug:
+	mpiexec -n 2 konsole -e gdb ./$(TARGET).out
 
 clean:
 	rm -f $(TARGET).out

@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <iostream>
 
 #include <mpi.h>
 
@@ -6,10 +6,14 @@
 
 // Distribute each process rank using MPI_Alltoall
 int main(int argc, char** argv) {
+
+  // Initialize MPI
   MPI_CALL(MPI_Init(&argc, &argv));
+
+  // Set MPI size and rank
   int size;
-  MPI_CALL(MPI_Comm_size(MPI_COMM_WORLD, &size));
   int rank;
+  MPI_CALL(MPI_Comm_size(MPI_COMM_WORLD, &size));
   MPI_CALL(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
 
   // Send and recieve buffers must be the same size
@@ -25,12 +29,13 @@ int main(int argc, char** argv) {
   MPI_CALL(MPI_Alltoall(send_data, 1, MPI_INT, recv_data, 1, MPI_INT, MPI_COMM_WORLD));
 
   // Verify that all processes have the same thing in their recieve buffer
-  printf("Process %d received data: [", rank);
-  for (int i = 0; i < size ; i++) {
-    printf(" %d ", recv_data[i]);
+  std::cout << "Process " << rank << " received data: [";
+  for (int i = 0; i < size; i++) {
+    std::cout << " " << recv_data[i] << " ";
   }
-  printf("]\n");
+  std::cout << "]" << std::endl;
 
   // Finalize MPI
   MPI_CALL(MPI_Finalize());
+  return 0;
 }
