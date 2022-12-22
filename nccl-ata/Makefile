@@ -1,4 +1,4 @@
-TARGET = nccl-ata-built-in
+TARGET = nccl-ata
 COMMON = ../common
 NVCC_FLAGS += -dlto -lineinfo
 LDFLAGS = -lmpi -lnccl

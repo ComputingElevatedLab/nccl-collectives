@@ -9,7 +9,7 @@ build:
 	nvcc $(NVCC_FLAGS) $(SRC) -o $(TARGET).out $(LDFLAGS) $(THETAFLAGS)
 
 test:
-	./$(TARGET).out
+	mpiexec -n 2 ./$(TARGET).out
 
 run: build test
 

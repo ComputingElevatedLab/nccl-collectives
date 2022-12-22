@@ -59,8 +59,8 @@ int main(int argc, char* argv[])
     int* d_send_data = nullptr;
     int* d_recv_data = nullptr;
     CUDA_CALL(cudaSetDevice(local_rank));
-    CUDA_CALL(cudaMalloc((void **) &d_send_data, size * sizeof(int)));
-    CUDA_CALL(cudaMalloc((void **) &d_recv_data, size * sizeof(int)));
+    CUDA_CALL(cudaMalloc((void**) &d_send_data, size * sizeof(int)));
+    CUDA_CALL(cudaMalloc((void**) &d_recv_data, size * sizeof(int)));
     CUDA_CALL(cudaMemcpy(d_send_data, h_send_data, size * sizeof(int), cudaMemcpyHostToDevice));
     CUDA_CALL(cudaStreamCreate(&stream));
 
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
 
     // Perform all-to-all to send and receive each rank
     cudaEventRecord(start, 0);
-    ncclBruck(2, (char *) d_send_data, 1, ncclInt, (char *) d_recv_data, 1, ncclInt, comm, stream, rank, size);
+    ncclBruck(2, d_send_data, 1, ncclInt, d_recv_data, 1, ncclInt, comm, stream);
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
 
