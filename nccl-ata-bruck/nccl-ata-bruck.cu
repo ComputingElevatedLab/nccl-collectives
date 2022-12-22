@@ -49,6 +49,7 @@ int main(int argc, char* argv[])
     int h_send_data[size];
     int h_recv_data[size];
 
+    // TODO try setting to 0s
     // Fill the send buffer with each process rank
     for (int i = 0; i < size; i++) {
         h_send_data[i] = rank;
@@ -72,9 +73,9 @@ int main(int argc, char* argv[])
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
-    // Perform all-to-all to send and receive each rank
+    // Perform all-to-all to send and receive
     cudaEventRecord(start, 0);
-    ncclBruck(2, d_send_data, 1, ncclInt, d_recv_data, 1, ncclInt, comm, stream);
+    ncclBruck(2, (char*) d_send_data, 1, ncclInt, (char*) d_recv_data, 1, ncclInt, comm, stream);
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
 

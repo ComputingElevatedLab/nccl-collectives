@@ -2,6 +2,8 @@
 #include <cstring>
 #include <vector>
 
+#include <mpi.h>
+
 int myPow(int x, unsigned int p) {
   if (p == 0) return 1;
   if (p == 1) return x;
@@ -27,14 +29,20 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
     int rank, nprocs;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &nprocs);
-
+	std::cout << "I am rank " << rank << std::endl;
     int typesize;
     MPI_Type_size(sendtype, &typesize);
 
     int unit_size = sendcount * typesize;
+
+	std::cout << "My send size is " << unit_size << std::endl;
+
     int w = ceil(log(nprocs) / log(r)); // calculate the number of digits when using r-representation
 	int nlpow = myPow(r, w-1);
 	int d = (myPow(r, w) - nprocs) / nlpow; // calculate the number of highest digits
+	std::cout << "My w is " << w << std::endl;
+	std::cout << "My nlpow is " << nlpow << std::endl;
+	std::cout << "My d is " << d << std::endl;
 
     // local rotation
     std::memcpy(recvbuf, sendbuf, nprocs*unit_size);
@@ -47,6 +55,13 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
 		std::vector<int> r_rep = convert10tob(w, i, r);
 		std::memcpy(&rank_r_reps[i*w], r_rep.data(), w*sizeof(int));
 	}
+	std::cout << "Process " << rank << " rank_r_reps: [";
+	for (int i = 0; i < nprocs; i++) {
+		for (int j = 0; j < w; j++) {
+			std::cout << " " << rank_r_reps[j*w + i] << " ";
+		}
+	}
+	std::cout << "]" << std::endl;
 
 	int sent_blocks[nlpow];
 	int di = 0;
@@ -64,7 +79,9 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
     		ci = 0;
     		for (int i = 0; i < nprocs; i++) {
     			if (rank_r_reps[i*w + x] == z) {
+					std::cout << "Process " << rank << " here" << std::endl;
     				sent_blocks[di++] = i;
+					std::cout << "Process " << rank << " sentblocks " << i << std::endl;
     				memcpy(&temp_buffer[unit_size*ci++], &sendbuf[i*unit_size], unit_size);
     			}
     		}
@@ -74,6 +91,9 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
     		int recv_proc = (rank - distance + nprocs) % nprocs; // receive data from rank - 2^step process
     		int send_proc = (rank + distance) % nprocs; // send data from rank + 2^k process
     		long long comm_size = di * unit_size;
+			std::cout << "My distance is " << distance << std::endl;
+			std::cout << "My recv_proc is " << recv_proc << std::endl;
+			std::cout << "My send_proc is " << send_proc << std::endl;
     		MPI_Sendrecv(temp_buffer, comm_size, MPI_CHAR, send_proc, 0, recvbuf, comm_size, MPI_CHAR, recv_proc, 0, comm, MPI_STATUS_IGNORE);
 
     		// replace with received data
