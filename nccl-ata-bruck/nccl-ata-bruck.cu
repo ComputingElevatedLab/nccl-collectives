@@ -49,7 +49,6 @@ int main(int argc, char* argv[])
     int h_send_data[size];
     int h_recv_data[size];
 
-    // TODO try setting to 0s
     // Fill the send buffer with each process rank
     for (int i = 0; i < size; i++) {
         h_send_data[i] = rank;
