@@ -16,13 +16,13 @@ There are 4 all-to-all implementations, each stored in their own folder within t
 The command is the same for all implementations: `mpiexec -n <N> ./<implementation-name>.out`.
 
 # Input and Output
-For a given number of MPI processes (n), each process allocates an array of size n and fills each element with it's rank. So for `n = 2` the input looks like:
+For a given number of MPI processes (n), each process allocates an array of size n and fills each element with its rank. So for `n = 2` the input looks like:
 ```
 p1 = [0 0]
 p2 = [1 1]
 ```
 
-Then each implementation uses these arrays to perform the same operation: sending each rank to every other rank. Therefore the expected output when `n = 2` is:
+Then each implementation uses these arrays to perform the same operation: sending each rank to every other rank. Therefore, the expected output when `n = 2` is:
 ```
 p1 = [0 1]
 p2 = [0 2]
