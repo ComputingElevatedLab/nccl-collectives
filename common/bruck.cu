@@ -57,11 +57,11 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
 	for (int i = 0; i < size; i++) {
 		rank_r_reps[i] = convert10tob(w, i, r);
 	}
-    // TODO: Backwards indexing?
+
 	std::cout << "Rank " << rank << ": rank_r_reps: [";
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < w; j++) {
-			std::cout << " " << rank_r_reps[i][j] << " ";
+			std::cout << " r" << rank << " " << rank_r_reps[i][j] << " ";
 		}
 	}
 	std::cout << "]" << std::endl;
@@ -70,7 +70,6 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
 	int di = 0;
 	int ci = 0;
 
-    // TODO: Is the right amount of memory being allocated?
 	int* temp_buffer;
     CUDA_CALL(cudaMalloc((void **) &temp_buffer, nlpow * unit_size))
     std::cout << "Rank " << rank << ": temp_buffer allocated with (" << nlpow * unit_size << "b)" << std::endl;
@@ -81,11 +80,10 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
     		di = 0;
     		ci = 0;
     		for (int i = 0; i < size; i++) {
-                // TODO: Backwards indexing?
     			if (rank_r_reps[i][x] == z) {
                     std::cout << "Rank " << rank << ": before di=" << di << ", ci=" << ci << std::endl;
     				sent_blocks[di] = i;
-                    std::cout << "Rank " << rank << ": rank_r_reps[" << i << "][" << x << "]=" << z << ", sent_blocks=" << i << std::endl;
+                    std::cout << "Rank " << rank << ": rank_r_reps[" << i << "][" << x << "]=" << z << " (" << rank_r_reps[i][x]<< "), sent_blocks=" << i << std::endl;
     				CUDA_CALL(cudaMemcpy(&temp_buffer[unit_size * ci], &d_send_data[unit_size * i], unit_size, cudaMemcpyDefault))
                     di += 1;
                     ci += 1;

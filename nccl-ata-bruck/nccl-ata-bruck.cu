@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
     // Compute elapsed time
     float elapsedTime;
     cudaEventElapsedTime(&elapsedTime, start, stop);
-    std::cout << "Process " << rank << " elapsed all-to-all time: " << elapsedTime << " ms" << std::endl;
+    std::cout << "Rank " << rank << ": elapsed all-to-all time: " << elapsedTime << " ms" << std::endl;
 
     // Destroy CUDA events
     cudaEventDestroy(start);
@@ -90,9 +90,9 @@ int main(int argc, char* argv[])
 
     // Verify that all processes have the same thing in their recieve buffer
     CUDA_CALL(cudaMemcpy(h_recv_data, d_recv_data, size * sizeof(int), cudaMemcpyDeviceToHost));
-    std::cout << "Process " << rank << " received data: [";
+    std::cout << "Rank " << rank << ": received data: [";
     for (int i = 0; i < size; i++) {
-        std::cout << " " << h_recv_data[i] << " ";
+        std::cout << " r" << rank << " " << h_recv_data[i] << " ";
     }
     std::cout << "]" << std::endl;
 

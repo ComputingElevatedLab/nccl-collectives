@@ -34,12 +34,12 @@ int main(int argc, char** argv) {
 
   // Compute elapsed time
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-  std::cout << "Process " << rank << " elapsed all-to-all time: " << duration.count() << " ms" << std::endl;
+  std::cout << "Rank " << rank << ": elapsed all-to-all time: " << duration.count() << " ms" << std::endl;
 
   // Verify that all processes have the same thing in their recieve buffer
-  std::cout << "Process " << rank << " received data: [";
+  std::cout << "Rank " << rank << ": received data: [";
   for (int i = 0; i < size; i++) {
-    std::cout << " " << recv_data[i] << " ";
+    std::cout << " r" << rank << " " << recv_data[i] << " ";
   }
   std::cout << "]" << std::endl;
 
