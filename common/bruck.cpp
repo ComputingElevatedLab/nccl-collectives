@@ -36,7 +36,7 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
     int rank, nprocs;
     MPI_CALL(MPI_Comm_rank(comm, &rank))
     MPI_CALL(MPI_Comm_size(comm, &nprocs))
-    std::cout << "I am rank " << rank << " at the beginning of uniform_radix_r_bruck" << std::endl;
+    std::cout << "Rank " << rank << ": at the beginning of uniform_radix_r_bruck" << std::endl;
     int typesize;
     MPI_CALL(MPI_Type_size(sendtype, &typesize))
 
@@ -70,7 +70,7 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
 	int ci = 0;
 
 	char* temp_buffer = (char*)malloc(nlpow * unit_size); // temporary buffer
-    std::cout << "Rank " << rank << ": temp_buffer allocated with (" << nlpow * unit_size << ")" << std::endl;
+    std::cout << "Rank " << rank << ": temp_buffer allocated with (" << nlpow * unit_size << "b)" << std::endl;
 
 	// communication steps = (r - 1)w - d
     for (int x = 0; x < w; x++) {
@@ -102,18 +102,18 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
     		for (int i = 0; i < di; i++) {
     			long long offset = sent_blocks[i] * unit_size;
     			memcpy(sendbuf + offset, recvbuf + (i * unit_size), unit_size);
-                std::cout << "Rank " << rank << ": copying from d_recv_data[" << (i * unit_size) << "] to d_send_data[" << offset << "]" << std::endl;
+                std::cout << "Rank " << rank << ": copying from recv_data[" << (i * unit_size) << "] to send_data[" << offset << "]" << std::endl;
     		}
     	}
     }
-
-    free(rank_r_reps);
-    free(temp_buffer);
 
     // local rotation
 	for (int i = 0; i < nprocs; i++) {
 		int index = (rank - i + nprocs) % nprocs;
 		memcpy(&recvbuf[index * unit_size], &sendbuf[i * unit_size], unit_size);
-        std::cout << "Rank " << rank << ": copying from d_send_data[" << i * unit_size << "] to d_recv_data[" << index * unit_size << "]" << std::endl;
+        std::cout << "Rank " << rank << ": copying from send_data[" << i * unit_size << "] to recv_data[" << index * unit_size << "]" << std::endl;
 	}
+
+	free(rank_r_reps);
+    free(temp_buffer);
 }

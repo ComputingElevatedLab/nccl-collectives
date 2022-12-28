@@ -36,7 +36,7 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
     int rank;
     MPI_CALL(MPI_Comm_size(MPI_COMM_WORLD, &size))
     MPI_CALL(MPI_Comm_rank(MPI_COMM_WORLD, &rank))
-	std::cout << "I am rank " << rank << " at the beginning of ncclBruck" << std::endl;
+	std::cout << "Rank " << rank << ": at the beginning of ncclBruck" << std::endl;
 	
 	if (r < 2 || size < 2) {
 		std::cout << "Error: ncclBruck requires r >= 2 and nProc >= 2" << std::endl;
@@ -49,9 +49,9 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
 	int d = (myPow(r, w) - size) / nlpow;
 	std::cout << "Rank " << rank << ": unit_size=" << unit_size << ", w=" << w << ", nlpow=" << nlpow << ", d=" << d << std::endl;
 
-    CUDA_CALL(cudaMemcpy(d_recv_data, d_send_data, size * unit_size, cudaMemcpyDeviceToDevice))
-	CUDA_CALL(cudaMemcpy(&d_send_data[(size - rank) * unit_size], d_recv_data, rank * unit_size, cudaMemcpyDeviceToDevice))
-	CUDA_CALL(cudaMemcpy(d_send_data, &d_recv_data[rank * unit_size], (size - rank) * unit_size, cudaMemcpyDeviceToDevice))
+    CUDA_CALL(cudaMemcpy(d_recv_data, d_send_data, size * unit_size, cudaMemcpyDefault))
+	CUDA_CALL(cudaMemcpy(&d_send_data[(size - rank) * unit_size], d_recv_data, rank * unit_size, cudaMemcpyDefault))
+	CUDA_CALL(cudaMemcpy(d_send_data, &d_recv_data[rank * unit_size], (size - rank) * unit_size, cudaMemcpyDefault))
 
     std::vector<std::vector<int>> rank_r_reps(size * w);
 	for (int i = 0; i < size; i++) {
@@ -73,7 +73,7 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
     // TODO: Is the right amount of memory being allocated?
 	int* temp_buffer;
     CUDA_CALL(cudaMalloc((void **) &temp_buffer, nlpow * unit_size))
-    std::cout << "Rank " << rank << ": temp_buffer allocated with (" << nlpow * unit_size << ")" << std::endl;
+    std::cout << "Rank " << rank << ": temp_buffer allocated with (" << nlpow * unit_size << "b)" << std::endl;
 
     for (int x = 0; x < w; x++) {
     	int ze = (x == w - 1)? r - d: r;
@@ -86,7 +86,7 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
                     std::cout << "Rank " << rank << ": before di=" << di << ", ci=" << ci << std::endl;
     				sent_blocks[di] = i;
                     std::cout << "Rank " << rank << ": rank_r_reps[" << i << "][" << x << "]=" << z << ", sent_blocks=" << i << std::endl;
-    				CUDA_CALL(cudaMemcpy(&temp_buffer[unit_size * ci], &d_send_data[unit_size * i], unit_size, cudaMemcpyDeviceToDevice))
+    				CUDA_CALL(cudaMemcpy(&temp_buffer[unit_size * ci], &d_send_data[unit_size * i], unit_size, cudaMemcpyDefault))
                     di += 1;
                     ci += 1;
                     std::cout << "Rank " << rank << ": after di=" << di << ", ci=" << ci << std::endl;
@@ -104,14 +104,14 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
             NCCL_CALL(ncclGroupEnd())
 
     		for (int i = 0; i < di; i++) {
-    			CUDA_CALL(cudaMemcpy(&d_send_data[sent_blocks[i] * unit_size], &d_recv_data[i * unit_size], unit_size, cudaMemcpyDeviceToDevice))
+    			CUDA_CALL(cudaMemcpy(&d_send_data[sent_blocks[i] * unit_size], &d_recv_data[i * unit_size], unit_size, cudaMemcpyDefault))
                 std::cout << "Rank " << rank << ": copying from d_recv_data[" << i * unit_size << "] to d_send_data[" << sent_blocks[i] * unit_size << "]" << std::endl;
     		}
     	}
     }
 
 	for (int i = 0; i < size; i++) {
-		CUDA_CALL(cudaMemcpy(&d_recv_data[((rank - i + size) % size) * unit_size], &d_send_data[i * unit_size], unit_size, cudaMemcpyDeviceToDevice))
+		CUDA_CALL(cudaMemcpy(&d_recv_data[((rank - i + size) % size) * unit_size], &d_send_data[i * unit_size], unit_size, cudaMemcpyDefault))
         std::cout << "Rank " << rank << ": copying from d_send_data[" << i * unit_size << "] to d_recv_data[" << ((rank - i + size) % size) * unit_size << "]" << std::endl;
 	}
 

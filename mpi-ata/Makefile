@@ -8,7 +8,7 @@ build:
 	mpic++ $(FLAGS) -o $(TARGET).out $(SRC) 
 
 test:
-	mpiexec --use-hwthread-cpus ./$(TARGET).out
+	mpiexec -n 2 ./$(TARGET).out
 
 run: build test
 
