@@ -112,7 +112,7 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
 	int di = 0;
 	int ci = 0;
 
-	int* temp_buffer;
+	char* temp_buffer;
     CUDA_CALL(cudaMalloc((void **) &temp_buffer, nlpow * unit_size))
     std::cout << "Rank " << rank << ": temp_buffer allocated with (" << nlpow * unit_size << "b)" << std::endl;
 
