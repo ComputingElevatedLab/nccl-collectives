@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
   // Verify that all processes have the same thing in their recieve buffer
   std::cout << "Rank " << rank << ": received data: [";
   for (int i = 0; i < size; i++) {
-    std::cout << " r" << rank << " " << recv_data[i] << " ";
+    std::cout << " " << recv_data[i] << " ";
   }
   std::cout << "]" << std::endl;
 

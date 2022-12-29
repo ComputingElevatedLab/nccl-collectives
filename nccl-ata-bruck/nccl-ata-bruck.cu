@@ -61,7 +61,8 @@ int main(int argc, char* argv[])
     CUDA_CALL(cudaSetDevice(local_rank));
     CUDA_CALL(cudaMalloc((void**) &d_send_data, size * sizeof(int)));
     CUDA_CALL(cudaMalloc((void**) &d_recv_data, size * sizeof(int)));
-    CUDA_CALL(cudaMemcpy(d_send_data, h_send_data, size * sizeof(int), cudaMemcpyHostToDevice));
+    CUDA_CALL(cudaMemset(d_recv_data, 0, size * sizeof(int)))
+    CUDA_CALL(cudaMemcpy(d_send_data, h_send_data, size * sizeof(int), cudaMemcpyDefault));
     CUDA_CALL(cudaStreamCreate(&stream));
 
     // Initialize NCCL
@@ -88,7 +89,7 @@ int main(int argc, char* argv[])
     cudaEventDestroy(stop);
 
     // Verify that all processes have the same thing in their recieve buffer
-    CUDA_CALL(cudaMemcpy(h_recv_data, d_recv_data, size * sizeof(int), cudaMemcpyDeviceToHost));
+    CUDA_CALL(cudaMemcpy(h_recv_data, d_recv_data, size * sizeof(int), cudaMemcpyDefault));
     std::cout << "Rank " << rank << ": received data: [";
     for (int i = 0; i < size; i++) {
         std::cout << " r" << rank << " " << h_recv_data[i] << " ";
