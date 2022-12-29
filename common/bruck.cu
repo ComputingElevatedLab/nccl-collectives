@@ -97,6 +97,7 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
 	for (int i = 0; i < size; i++) {
 		rank_r_reps[i] = convert10tob(w, i, r);
 	}
+	std::cout << "]" << std::endl;
 
 	std::cout << "Rank " << rank << ": rank_r_reps: [";
 	for (int i = 0; i < size; i++) {

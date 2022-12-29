@@ -29,7 +29,6 @@ std::vector<int> convert10tob(int w, int N, int b) {
         v[i++] = (N % b);
 	    N /= b;
 	}
-	return v;
 }
 
 void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype,  MPI_Comm comm) {
@@ -72,6 +71,7 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
 	for (int i = 0; i < nprocs; i++) {
 		printf(" %02X", sendbuf[i]);
 	}
+	std::cout << "]" << std::endl;
 
     std::memcpy(sendbuf, &recvbuf[rank * unit_size], (nprocs - rank) * unit_size);
 
@@ -115,7 +115,7 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
     				sent_blocks[di++] = i;
                     std::cout << "Rank " << rank << ": rank_r_reps[" << i << "][" << x << "]=" << z << " (" << rank_r_reps[i][x]<< "), sent_blocks=" << i << std::endl;
     				memcpy(&temp_buffer[unit_size*ci++], &sendbuf[i*unit_size], unit_size);
-                    std::cout << "Rank " << rank << ": d_send_data: [";
+                    std::cout << "Rank " << rank << ": temp_buffer: [";
 					for (int i = 0; i < nlpow; i++) {
 						printf(" %02X", temp_buffer[i]);
 					}
