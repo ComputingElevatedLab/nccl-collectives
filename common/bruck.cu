@@ -3,6 +3,7 @@
 #include <cstring>
 #include <vector>
 
+#include "mpi.h"
 #include "nccl.h"
 
 #include "error-catch.cu"
@@ -75,7 +76,7 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
 	}
 	std::cout << "]" << std::endl;
 
-	CUDA_CALL(cudaMemcpy(&d_send_data[(size - rank) * send_count], d_recv_data, rank * unit_size, cudaMemcpyDefault))
+	CUDA_CALL(cudaMemcpy(&d_send_data[(size - rank) * unit_size], d_recv_data, rank * unit_size, cudaMemcpyDefault))
 
 	CUDA_CALL(cudaMemcpy(h_send_debug, d_send_data, size * sizeof(int), cudaMemcpyDefault))
 	std::cout << "Rank " << rank << ": d_send_data: [";
@@ -84,7 +85,7 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
 	}
 	std::cout << "]" << std::endl;
 
-	CUDA_CALL(cudaMemcpy(d_send_data, &d_recv_data[rank * send_count], (size - rank) * send_count, cudaMemcpyDefault))
+	CUDA_CALL(cudaMemcpy(d_send_data, &d_recv_data[rank * unit_size], (size - rank) * unit_size, cudaMemcpyDefault))
 
 	CUDA_CALL(cudaMemcpy(h_send_debug, d_send_data, size * sizeof(int), cudaMemcpyDefault))
 	std::cout << "Rank " << rank << ": d_send_data: [";
@@ -125,7 +126,7 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
                     std::cout << "Rank " << rank << ": before di=" << di << ", ci=" << ci << std::endl;
     				sent_blocks[di] = i;
                     std::cout << "Rank " << rank << ": rank_r_reps[" << i << "][" << x << "]=" << z << " (" << rank_r_reps[i][x]<< "), sent_blocks=" << i << std::endl;
-    				CUDA_CALL(cudaMemcpy(&temp_buffer[send_count * ci], &d_send_data[send_count * i], unit_size, cudaMemcpyDefault))
+    				CUDA_CALL(cudaMemcpy(&temp_buffer[unit_size * ci], &d_send_data[unit_size * i], unit_size, cudaMemcpyDefault))
 
 					CUDA_CALL(cudaMemcpy(h_temp_debug, temp_buffer, nlpow * sizeof(int), cudaMemcpyDefault))
 					std::cout << "Rank " << rank << ": temp_buffer: [";
@@ -147,31 +148,31 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
 
             NCCL_CALL(ncclGroupStart())
             NCCL_CALL(ncclSend(temp_buffer, di * unit_size, send_type, send_rank, comm, stream))
-            NCCL_CALL(ncclRecv(temp_buffer, di * unit_size, recv_type, recv_rank, comm, stream))
+            NCCL_CALL(ncclRecv(d_recv_data, di * unit_size, recv_type, recv_rank, comm, stream))
             NCCL_CALL(ncclGroupEnd())
 
     		for (int i = 0; i < di; i++) {
-    			CUDA_CALL(cudaMemcpy(&d_send_data[sent_blocks[i] * send_count], &d_recv_data[i * send_count], unit_size, cudaMemcpyDefault))
+    			CUDA_CALL(cudaMemcpy(&d_send_data[sent_blocks[i] * unit_size], &d_recv_data[i * unit_size], unit_size, cudaMemcpyDefault))
 				CUDA_CALL(cudaMemcpy(h_send_debug, d_send_data, size * sizeof(int), cudaMemcpyDefault))
 				std::cout << "Rank " << rank << ": d_send_data: [";
 				for (int i = 0; i < size; i++) {
 					printf(" %02X", h_send_debug[i]);
 				}
 				std::cout << "]" << std::endl;
-                std::cout << "Rank " << rank << ": copying from d_recv_data[" << i * send_count << "] to d_send_data[" << sent_blocks[i] * send_count << "]" << std::endl;
+                std::cout << "Rank " << rank << ": copying from d_recv_data[" << i * unit_size << "] to d_send_data[" << sent_blocks[i] * unit_size << "]" << std::endl;
     		}
     	}
     }
 
 	for (int i = 0; i < size; i++) {
-		CUDA_CALL(cudaMemcpy(&d_recv_data[((rank - i + size) % size) * send_count], &d_send_data[i * send_count], unit_size, cudaMemcpyDefault))
+		CUDA_CALL(cudaMemcpy(&d_recv_data[((rank - i + size) % size) * unit_size], &d_send_data[i * unit_size], unit_size, cudaMemcpyDefault))
         CUDA_CALL(cudaMemcpy(h_recv_debug, d_recv_data, size * sizeof(int), cudaMemcpyDefault))
 		std::cout << "Rank " << rank << ": d_recv_data: [";
 		for (int i = 0; i < size; i++) {
 			printf(" %02X", h_recv_debug[i]);
 		}
 		std::cout << "]" << std::endl;
-		std::cout << "Rank " << rank << ": copying from d_send_data[" << i * send_count << "] to d_recv_data[" << ((rank - i + size) % size) * send_count << "]" << std::endl;
+		std::cout << "Rank " << rank << ": copying from d_send_data[" << i * unit_size << "] to d_recv_data[" << ((rank - i + size) % size) * unit_size << "]" << std::endl;
 	}
 
     CUDA_CALL(cudaFree(temp_buffer))
