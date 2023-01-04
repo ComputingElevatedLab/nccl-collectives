@@ -37,6 +37,7 @@ int main(int argc, char* argv[])
             local_rank++;
         }
     }
+    std::cout << "Rank " << rank << ": on host " << hostname << " using GPU " << local_rank << std::endl;
 
     // Initialize a unique NCCL ID at process 0 and broadcast it to all others
     ncclUniqueId id;

@@ -1,3 +1,5 @@
+export NCCL_DEBUG=WARN
+
 TARGET = nccl-ata-bruck
 COMMON = ../common
 NVCC_FLAGS += -dlto -lineinfo
