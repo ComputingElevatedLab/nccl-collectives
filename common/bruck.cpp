@@ -36,7 +36,7 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
     int rank, nprocs;
     MPI_CALL(MPI_Comm_rank(comm, &rank))
     MPI_CALL(MPI_Comm_size(comm, &nprocs))
-    std::cout << "Rank " << rank << ": at the beginning of uniform_radix_r_bruck" << std::endl;
+
     int typesize;
     MPI_CALL(MPI_Type_size(sendtype, &typesize))
 
@@ -44,63 +44,22 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
     int w = std::ceil(std::log(nprocs) / std::log(r)); // calculate the number of digits when using r-representation
 	int nlpow = myPow(r, w - 1);
 	int d = (myPow(r, w) - nprocs) / nlpow; // calculate the number of highest digits
-    std::cout << "Rank " << rank << ": unit_size=" << unit_size << ", w=" << w << ", nlpow=" << nlpow << ", d=" << d << std::endl;
-
-    // local rotation
-	std::cout << "Rank " << rank << ": d_send_data (as chars): [";
-	for (int i = 0; i < nprocs * sizeof(int); i++) {
-		printf(" %d", sendbuf[i]);
-	}
-	std::cout << "]" << std::endl;
-	std::cout << "Rank " << rank << ": d_recv_data (as chars): [";
-	for (int i = 0; i < nprocs * sizeof(int); i++) {
-		printf(" %d", recvbuf[i]);
-	}
-	std::cout << "]" << std::endl;
 
     std::memcpy(recvbuf, sendbuf, nprocs * unit_size);
-
-	std::cout << "Rank " << rank << ": d_recv_data (as chars): [";
-	for (int i = 0; i < nprocs * sizeof(int); i++) {
-		printf(" %d", recvbuf[i]);
-	}
-	std::cout << "]" << std::endl;
-
     std::memcpy(&sendbuf[(nprocs - rank) * unit_size], recvbuf, rank * unit_size);
-
-	std::cout << "Rank " << rank << ": d_send_data (as chars): [";
-	for (int i = 0; i < nprocs * sizeof(int); i++) {
-		printf(" %d", sendbuf[i]);
-	}
-	std::cout << "]" << std::endl;
-
     std::memcpy(sendbuf, &recvbuf[rank * unit_size], (nprocs - rank) * unit_size);
-
-	std::cout << "Rank " << rank << ": d_send_data (as chars): [";
-	for (int i = 0; i < nprocs * sizeof(int); i++) {
-		printf(" %d", sendbuf[i]);
-	}
-	std::cout << "]" << std::endl;
 
     // convert rank to base r representation
     std::vector<std::vector<int>> rank_r_reps(nprocs * w);
 	for (int i = 0; i < nprocs; i++) {
 		rank_r_reps[i] = convert10tob(w, i, r);
 	}
-	std::cout << "Rank " << rank << ": rank_r_reps: [";
-	for (int i = 0; i < nprocs; i++) {
-		for (int j = 0; j < w; j++) {
-			std::cout << " " << rank_r_reps[i][j] << " ";
-		}
-	}
-	std::cout << "]" << std::endl;
 
 	int sent_blocks[nlpow];
 	int di = 0;
 	int ci = 0;
 
 	char* temp_buffer = (char*)malloc(nlpow * unit_size); // temporary buffer
-    std::cout << "Rank " << rank << ": temp_buffer allocated with (" << nlpow * unit_size << "b)" << std::endl;
 
 	// communication steps = (r - 1)w - d
     for (int x = 0; x < w; x++) {
@@ -112,16 +71,8 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
     		ci = 0;
     		for (int i = 0; i < nprocs; i++) {
     			if (rank_r_reps[i][x] == z) {
-                    std::cout << "Rank " << rank << ": before di=" << di << ", ci=" << ci << std::endl;
     				sent_blocks[di++] = i;
-                    std::cout << "Rank " << rank << ": rank_r_reps[" << i << "][" << x << "]=" << z << " (" << rank_r_reps[i][x]<< "), sent_blocks=" << i << std::endl;
     				memcpy(&temp_buffer[unit_size*ci++], &sendbuf[i*unit_size], unit_size);
-                    std::cout << "Rank " << rank << ": temp_buffer (as chars): [";
-					for (int i = 0; i < nlpow * sizeof(int); i++) {
-						printf(" %d", temp_buffer[i]);
-					}
-					std::cout << "]" << std::endl;
-					std::cout << "Rank " << rank << ": after di=" << di << ", ci=" << ci << std::endl;
 				}
     		}
 
@@ -130,19 +81,12 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
     		int recv_proc = (rank - distance + nprocs) % nprocs; // receive data from rank - 2^step process
     		int send_proc = (rank + distance) % nprocs; // send data from rank + 2^k process
     		long long comm_size = di * unit_size;
-            std::cout << "Rank " << rank << ": distance=" << distance << ", recv_rank=" << recv_proc << ", send_rank=" << send_proc << std::endl;
             MPI_CALL(MPI_Sendrecv(temp_buffer, comm_size, MPI_CHAR, send_proc, 0, recvbuf, comm_size, MPI_CHAR, recv_proc, 0, comm, MPI_STATUS_IGNORE))
 
     		// replace with received data
     		for (int i = 0; i < di; i++) {
     			long long offset = sent_blocks[i] * unit_size;
     			memcpy(sendbuf + offset, recvbuf + (i * unit_size), unit_size);
-				std::cout << "Rank " << rank << ": d_send_data (as chars): [";
-				for (int i = 0; i < nprocs * sizeof(int); i++) {
-					printf(" %d", sendbuf[i]);
-				}
-				std::cout << "]" << std::endl;
-                std::cout << "Rank " << rank << ": copying from recv_data[" << (i * unit_size) << "] to send_data[" << offset << "]" << std::endl;
     		}
     	}
     }
@@ -151,12 +95,6 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
 	for (int i = 0; i < nprocs; i++) {
 		int index = (rank - i + nprocs) % nprocs;
 		memcpy(&recvbuf[index * unit_size], &sendbuf[i * unit_size], unit_size);
-		std::cout << "Rank " << rank << ": d_recv_data (as chars): [";
-		for (int i = 0; i < nprocs * sizeof(int); i++) {
-			printf(" %d", recvbuf[i]);
-		}
-		std::cout << "]" << std::endl;
-        std::cout << "Rank " << rank << ": copying from send_data[" << i * unit_size << "] to recv_data[" << index * unit_size << "]" << std::endl;
 	}
 
     free(temp_buffer);
