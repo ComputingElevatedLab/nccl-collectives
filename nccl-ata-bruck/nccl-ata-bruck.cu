@@ -4,6 +4,7 @@
 #include <mpi.h>
 #include <nccl.h>
 
+#include "../common/error-catch.cpp"
 #include "../common/bruck.cu"
 #include "../common/error-catch.cu"
 #include "../common/hostname.cu"
@@ -11,24 +12,26 @@
 int main(int argc, char* argv[])
 {
     // Initialize MPI
-    MPI_CALL(MPI_Init(&argc, &argv));
+    MPICHECK(MPI_Init(&argc, &argv));
 
     // Set MPI size and rank
     int size;
     int rank;
-    MPI_CALL(MPI_Comm_size(MPI_COMM_WORLD, &size));
-    MPI_CALL(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
+    MPICHECK(MPI_Comm_size(MPI_COMM_WORLD, &size));
+    MPICHECK(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
     
     int count;
-    CUDA_CALL(cudaGetDeviceCount(&count))
-    std::cout << "Process " << rank << ": There are " << count << " CUDA devices available" << std::endl; 
+    CUDACHECK(cudaGetDeviceCount(&count));
+    if (rank == 0) {
+        std::cout << "There are " << count << " CUDA devices available" << std::endl; 
+    }
 
     // Figure out what host the current MPI process is running on
     uint64_t hostHashs[size];
     char hostname[1024];
     getHostName(hostname, 1024);
     hostHashs[rank] = getHostHash(hostname);
-    MPI_CALL(MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, hostHashs, sizeof(uint64_t), MPI_BYTE, MPI_COMM_WORLD));
+    MPICHECK(MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, hostHashs, sizeof(uint64_t), MPI_BYTE, MPI_COMM_WORLD));
 
     // Compute and set the local rank based on the hostname
     int local_rank = 0;
@@ -47,11 +50,12 @@ int main(int argc, char* argv[])
     if (rank == 0) {
         ncclGetUniqueId(&id);
     }
-    MPI_CALL(MPI_Bcast((void*) &id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
+    MPICHECK(MPI_Bcast((void*) &id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
 
     // Allocate memory for host variables
-    int h_send_data[size];
-    int h_recv_data[size];
+    int bytes = sizeof(double);
+    double h_send_data[size];
+    double h_recv_data[size];
 
     // Fill the send buffer with each process rank
     for (int i = 0; i < size; i++) {
@@ -60,18 +64,18 @@ int main(int argc, char* argv[])
 
     // Allocate memory for device variables
     cudaStream_t stream;
-    int* d_send_data = nullptr;
-    int* d_recv_data = nullptr;
-    CUDA_CALL(cudaSetDevice(local_rank));
-    CUDA_CALL(cudaMalloc((void**) &d_send_data, size * sizeof(int)));
-    CUDA_CALL(cudaMalloc((void**) &d_recv_data, size * sizeof(int)));
-    CUDA_CALL(cudaMemset(d_recv_data, 0, size * sizeof(int)))
-    CUDA_CALL(cudaMemcpy(d_send_data, h_send_data, size * sizeof(int), cudaMemcpyDefault));
-    CUDA_CALL(cudaStreamCreate(&stream));
+    double* d_send_data = nullptr;
+    double* d_recv_data = nullptr;
+    CUDACHECK(cudaSetDevice(local_rank));
+    CUDACHECK(cudaMalloc((void**) &d_send_data, size * bytes));
+    CUDACHECK(cudaMalloc((void**) &d_recv_data, size * bytes));
+    CUDACHECK(cudaMemset(d_recv_data, 0, size * bytes));
+    CUDACHECK(cudaMemcpy(d_send_data, h_send_data, size * bytes, cudaMemcpyDefault));
+    CUDACHECK(cudaStreamCreate(&stream));
 
     // Initialize NCCL
     ncclComm_t comm;
-    NCCL_CALL(ncclCommInitRank(&comm, size, id, rank));
+    NCCLCHECK(ncclCommInitRank(&comm, size, id, rank));
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -79,7 +83,7 @@ int main(int argc, char* argv[])
 
     // Perform all-to-all to send and receive
     cudaEventRecord(start, 0);
-    ncclBruck(2, (char*) d_send_data, 1, ncclInt, (char*) d_recv_data, 1, ncclInt, comm, stream);
+    ncclBruck(2, (char*) d_send_data, 1, ncclDouble, (char*) d_recv_data, 1, ncclDouble, comm, stream);
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
 
@@ -93,21 +97,21 @@ int main(int argc, char* argv[])
     cudaEventDestroy(stop);
 
     // Verify that all processes have the same thing in their recieve buffer
-    CUDA_CALL(cudaMemcpy(h_recv_data, d_recv_data, size * sizeof(int), cudaMemcpyDefault));
+    CUDACHECK(cudaMemcpy(h_recv_data, d_recv_data, size * bytes, cudaMemcpyDefault));
     std::cout << "Rank " << rank << ": received data: [";
     for (int i = 0; i < size; i++) {
-        std::cout << " r" << rank << " " << h_recv_data[i] << " ";
+        std::cout << " " << h_recv_data[i] << " ";
     }
     std::cout << "]" << std::endl;
 
     // Free all device variables
-    CUDA_CALL(cudaFree(d_send_data));
-    CUDA_CALL(cudaFree(d_recv_data));
+    CUDACHECK(cudaFree(d_send_data));
+    CUDACHECK(cudaFree(d_recv_data));
 
     // Destroy NCCL communicator
     ncclCommDestroy(comm);
 
     // Finalize MPI
-    MPI_CALL(MPI_Finalize());
+    MPICHECK(MPI_Finalize());
     return 0;
 }
