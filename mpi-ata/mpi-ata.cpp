@@ -9,13 +9,13 @@
 int main(int argc, char** argv) {
 
   // Initialize MPI
-  MPI_CALL(MPI_Init(&argc, &argv));
+  MPICHECK(MPI_Init(&argc, &argv));
 
   // Set MPI size and rank
   int size;
   int rank;
-  MPI_CALL(MPI_Comm_size(MPI_COMM_WORLD, &size));
-  MPI_CALL(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
+  MPICHECK(MPI_Comm_size(MPI_COMM_WORLD, &size));
+  MPICHECK(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
 
   // Send and recieve buffers must be the same size
   int send_data[size];
@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
 
   // Use MPI_Alltoall to send and receive each rank
   auto start = std::chrono::high_resolution_clock::now();
-  MPI_CALL(MPI_Alltoall(send_data, 1, MPI_INT, recv_data, 1, MPI_INT, MPI_COMM_WORLD));
+  MPICHECK(MPI_Alltoall(send_data, 1, MPI_INT, recv_data, 1, MPI_INT, MPI_COMM_WORLD));
   auto stop = std::chrono::high_resolution_clock::now();
 
   // Compute elapsed time
@@ -43,6 +43,6 @@ int main(int argc, char** argv) {
   std::cout << "]" << std::endl;
 
   // Finalize MPI
-  MPI_CALL(MPI_Finalize());
+  MPICHECK(MPI_Finalize());
   return 0;
 }

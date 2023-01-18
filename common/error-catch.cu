@@ -1,44 +1,40 @@
 // Source: https://github.com/FZJ-JSC/tutorial-multi-gpu
+#define CUDACHECK(cmd) do {                         \
+  cudaError_t err = cmd;                            \
+  if( err != cudaSuccess ) {                        \
+    char hostname[1024];                            \
+    getHostName(hostname, 1024);                    \
+    printf("%s: Test CUDA failure %s:%d '%s'\n",    \
+         hostname,                                  \
+        __FILE__,__LINE__,cudaGetErrorString(err)); \
+    return 2;                           \
+  }                                                 \
+} while(0)
 
-#define MPI_CALL(call)                                                                \
-    {                                                                                 \
-        int mpi_status = call;                                                        \
-        if (0 != mpi_status) {                                                        \
-            char mpi_error_string[MPI_MAX_ERROR_STRING];                              \
-            int mpi_error_string_length = 0;                                          \
-            MPI_Error_string(mpi_status, mpi_error_string, &mpi_error_string_length); \
-            if (NULL != mpi_error_string)                                             \
-                fprintf(stderr,                                                       \
-                        "ERROR: MPI call \"%s\" in line %d of file %s failed "        \
-                        "with %s "                                                    \
-                        "(%d).\n",                                                    \
-                        #call, __LINE__, __FILE__, mpi_error_string, mpi_status);     \
-            else                                                                      \
-                fprintf(stderr,                                                       \
-                        "ERROR: MPI call \"%s\" in line %d of file %s failed "        \
-                        "with %d.\n",                                                 \
-                        #call, __LINE__, __FILE__, mpi_status);                       \
-        }                                                                             \
-    }
-
-#define CUDA_CALL(call)                                                                  \
-    {                                                                                       \
-        cudaError_t cudaStatus = call;                                                      \
-        if (cudaSuccess != cudaStatus)                                                      \
-            fprintf(stderr,                                                                 \
-                    "ERROR: CUDA RT call \"%s\" in line %d of file %s failed "              \
-                    "with "                                                                 \
-                    "%s (%d).\n",                                                           \
-                    #call, __LINE__, __FILE__, cudaGetErrorString(cudaStatus), cudaStatus); \
-    }
-
-#define NCCL_CALL(call)                                                                     \
-    {                                                                                       \
-        ncclResult_t  ncclStatus = call;                                                    \
-        if (ncclSuccess != ncclStatus)                                                      \
-            fprintf(stderr,                                                                 \
-                    "ERROR: NCCL call \"%s\" in line %d of file %s failed "                 \
-                    "with "                                                                 \
-                    "%s (%d).\n",                                                           \
-                    #call, __LINE__, __FILE__, ncclGetErrorString(ncclStatus), ncclStatus); \
-    }
+#if NCCL_VERSION_CODE >= NCCL_VERSION(2,13,0)
+#define NCCLCHECK(cmd) do {                         \
+  ncclResult_t res = cmd;                           \
+  if (res != ncclSuccess) {                         \
+    char hostname[1024];                            \
+    getHostName(hostname, 1024);                    \
+    printf("%s: Test NCCL failure %s:%d "           \
+           "'%s / %s'\n",                           \
+           hostname,__FILE__,__LINE__,              \
+           ncclGetErrorString(res),                 \
+           ncclGetLastError(NULL));                 \
+    return 3;                           \
+  }                                                 \
+} while(0)
+#else
+#define NCCLCHECK(cmd) do {                         \
+  ncclResult_t res = cmd;                           \
+  if (res != ncclSuccess) {                         \
+    char hostname[1024];                            \
+    getHostName(hostname, 1024);                    \
+    printf("%s: Test NCCL failure %s:%d '%s'\n",    \
+         hostname,                                  \
+        __FILE__,__LINE__,ncclGetErrorString(res)); \
+    return 3;                           \
+  }                                                 \
+} while(0)
+#endif

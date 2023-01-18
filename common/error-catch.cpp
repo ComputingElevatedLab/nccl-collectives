@@ -3,7 +3,7 @@
 
 #include "mpi.h"
 
-#define MPI_CALL(call)                                                                \
+#define MPICHECK(call)                                                                \
     {                                                                                 \
         int mpi_status = call;                                                        \
         if (0 != mpi_status) {                                                        \

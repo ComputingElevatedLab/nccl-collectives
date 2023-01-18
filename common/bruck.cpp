@@ -34,11 +34,11 @@ std::vector<int> convert10tob(int w, int N, int b) {
 
 void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype,  MPI_Comm comm) {
     int rank, nprocs;
-    MPI_CALL(MPI_Comm_rank(comm, &rank))
-    MPI_CALL(MPI_Comm_size(comm, &nprocs))
+    MPICHECK(MPI_Comm_rank(comm, &rank));
+    MPICHECK(MPI_Comm_size(comm, &nprocs));
 
     int typesize;
-    MPI_CALL(MPI_Type_size(sendtype, &typesize))
+    MPICHECK(MPI_Type_size(sendtype, &typesize));
 
     int unit_size = sendcount * typesize;
     int w = std::ceil(std::log(nprocs) / std::log(r)); // calculate the number of digits when using r-representation
@@ -81,7 +81,7 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
     		int recv_proc = (rank - distance + nprocs) % nprocs; // receive data from rank - 2^step process
     		int send_proc = (rank + distance) % nprocs; // send data from rank + 2^k process
     		long long comm_size = di * unit_size;
-            MPI_CALL(MPI_Sendrecv(temp_buffer, comm_size, MPI_CHAR, send_proc, 0, recvbuf, comm_size, MPI_CHAR, recv_proc, 0, comm, MPI_STATUS_IGNORE))
+            MPICHECK(MPI_Sendrecv(temp_buffer, comm_size, MPI_CHAR, send_proc, 0, recvbuf, comm_size, MPI_CHAR, recv_proc, 0, comm, MPI_STATUS_IGNORE));
 
     		// replace with received data
     		for (int i = 0; i < di; i++) {

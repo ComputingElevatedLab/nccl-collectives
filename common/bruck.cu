@@ -47,21 +47,11 @@ int myPow(int x, unsigned int p) {
 	return x * tmp * tmp;
 }
 
-std::vector<int> convert10tob(int w, int N, int b) {
-	std::vector<int> v(w);
-	int i = 0;
-	while(N) {
-	    v[i++] = (N % b);
-	    N /= b;
-	}
-	return v;
-}
-
 void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_type, char* d_recv_data, int recv_count, ncclDataType_t recv_type,  ncclComm_t comm, cudaStream_t stream) {
     int size;
 	int rank;
-    NCCL_CALL(ncclCommCount(comm, &size));
-	NCCL_CALL(ncclCommUserRank(comm, &rank));
+    NCCLCHECK(ncclCommCount(comm, &size));
+	NCCLCHECK(ncclCommUserRank(comm, &rank));
 
 	if (r < 2 || size < 2) {
 		std::cout << "Error: ncclBruck requires r >= 2 and nProc >= 2" << std::endl;
@@ -73,13 +63,20 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
 	int nlpow = myPow(r, w - 1);
 	int d = (myPow(r, w) - size) / nlpow;
 
-    CUDA_CALL(cudaMemcpy(d_recv_data, d_send_data, size * unit_size, cudaMemcpyDefault))
-	CUDA_CALL(cudaMemcpy(&d_send_data[(size - rank) * unit_size], d_recv_data, rank * unit_size, cudaMemcpyDefault))
-	CUDA_CALL(cudaMemcpy(d_send_data, &d_recv_data[rank * unit_size], (size - rank) * unit_size, cudaMemcpyDefault))
+    CUDACHECK(cudaMemcpy(d_recv_data, d_send_data, size * unit_size, cudaMemcpyDefault));
+	CUDACHECK(cudaMemcpy(&d_send_data[(size - rank) * unit_size], d_recv_data, rank * unit_size, cudaMemcpyDefault));
+	CUDACHECK(cudaMemcpy(d_send_data, &d_recv_data[rank * unit_size], (size - rank) * unit_size, cudaMemcpyDefault));
 
     std::vector<std::vector<int>> rank_r_reps(size * w);
 	for (int i = 0; i < size; i++) {
-		rank_r_reps[i] = convert10tob(w, i, r);
+		std::vector<int> v(w);
+		int N = i;
+		int j = 0;
+		while(N) {
+			v[j++] = (N % r);
+			N /= r;
+		}
+		rank_r_reps[i] = v;
 	}
 
 	int sent_blocks[nlpow];
@@ -87,7 +84,7 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
 	int ci = 0;
 
 	char* temp_buffer;
-    CUDA_CALL(cudaMalloc((void **) &temp_buffer, nlpow * unit_size))
+    CUDACHECK(cudaMalloc((void **) &temp_buffer, nlpow * unit_size));
 
     for (int x = 0; x < w; x++) {
     	int ze = (x == w - 1)? r - d: r;
@@ -97,7 +94,7 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
     		for (int i = 0; i < size; i++) {
     			if (rank_r_reps[i][x] == z) {
     				sent_blocks[di] = i;
-    				CUDA_CALL(cudaMemcpy(&temp_buffer[unit_size * ci], &d_send_data[unit_size * i], unit_size, cudaMemcpyDefault))
+    				CUDACHECK(cudaMemcpy(&temp_buffer[unit_size * ci], &d_send_data[unit_size * i], unit_size, cudaMemcpyDefault));
                     di += 1;
                     ci += 1;
 				}
@@ -107,20 +104,20 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
     		int recv_rank = (rank - distance + size) % size;
     		int send_rank = (rank + distance) % size;
 
-            NCCL_CALL(ncclGroupStart())
-            NCCL_CALL(ncclSend(temp_buffer, di * unit_size, send_type, send_rank, comm, stream))
-            NCCL_CALL(ncclRecv(d_recv_data, di * unit_size, recv_type, recv_rank, comm, stream))
-            NCCL_CALL(ncclGroupEnd())
+            NCCLCHECK(ncclGroupStart());
+            NCCLCHECK(ncclSend(temp_buffer, di * unit_size, send_type, send_rank, comm, stream));
+            NCCLCHECK(ncclRecv(d_recv_data, di * unit_size, recv_type, recv_rank, comm, stream));
+            NCCLCHECK(ncclGroupEnd());
 
     		for (int i = 0; i < di; i++) {
-    			CUDA_CALL(cudaMemcpy(&d_send_data[sent_blocks[i] * unit_size], &d_recv_data[i * unit_size], unit_size, cudaMemcpyDefault))
+    			CUDACHECK(cudaMemcpy(&d_send_data[sent_blocks[i] * unit_size], &d_recv_data[i * unit_size], unit_size, cudaMemcpyDefault));
     		}
     	}
     }
 
 	for (int i = 0; i < size; i++) {
-		CUDA_CALL(cudaMemcpy(&d_recv_data[((rank - i + size) % size) * unit_size], &d_send_data[i * unit_size], unit_size, cudaMemcpyDefault))
+		CUDACHECK(cudaMemcpy(&d_recv_data[((rank - i + size) % size) * unit_size], &d_send_data[i * unit_size], unit_size, cudaMemcpyDefault));
 	}
 
-    CUDA_CALL(cudaFree(temp_buffer))
+    CUDACHECK(cudaFree(temp_buffer));
 }
