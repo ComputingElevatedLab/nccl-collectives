@@ -9,7 +9,6 @@
     printf("%s: Test CUDA failure %s:%d '%s'\n",    \
          hostname,                                  \
         __FILE__,__LINE__,cudaGetErrorString(err)); \
-    return;                           \
   }                                                 \
 } while(0)
 
@@ -24,7 +23,6 @@
            hostname,__FILE__,__LINE__,              \
            ncclGetErrorString(res),                 \
            ncclGetLastError(NULL));                 \
-    return;                           \
   }                                                 \
 } while(0)
 #else
@@ -36,7 +34,6 @@
     printf("%s: Test NCCL failure %s:%d '%s'\n",    \
          hostname,                                  \
         __FILE__,__LINE__,ncclGetErrorString(res)); \
-    return 3;                           \
   }                                                 \
 } while(0)
 #endif

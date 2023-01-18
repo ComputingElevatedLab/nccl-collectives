@@ -121,5 +121,4 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
 	}
 
     CUDACHECK(cudaFree(temp_buffer));
-	return;
 }
