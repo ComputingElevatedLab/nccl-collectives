@@ -3,10 +3,35 @@
 #include <cstring>
 #include <vector>
 
-#include "mpi.h"
 #include "nccl.h"
 
 #include "error-catch.cu"
+
+size_t ncclTypeSize(ncclDataType_t type) {
+	switch(type) {
+		case ncclChar:
+		#if NCCL_MAJOR >= 2
+			case ncclUint8:
+		#endif
+		return 1;
+		case ncclHalf:
+		#if defined(__CUDA_BF16_TYPES_EXIST__)
+			case ncclBfloat16:
+		#endif
+		return 2;
+		case ncclInt:
+		case ncclFloat:
+		#if NCCL_MAJOR >= 2
+			case ncclUint32:
+		#endif
+		return 4;
+		case ncclInt64:
+		case ncclUint64:
+		case ncclDouble:
+		return 8;
+		default: return 0;
+	}
+}
 
 int myPow(int x, unsigned int p) {
     if (p == 0) {
@@ -34,16 +59,16 @@ std::vector<int> convert10tob(int w, int N, int b) {
 
 void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_type, char* d_recv_data, int recv_count, ncclDataType_t recv_type,  ncclComm_t comm, cudaStream_t stream) {
     int size;
-    int rank;
-    MPI_CALL(MPI_Comm_size(MPI_COMM_WORLD, &size))
-    MPI_CALL(MPI_Comm_rank(MPI_COMM_WORLD, &rank))
-	
+	int rank;
+    NCCL_CALL(ncclCommCount(comm, &size));
+	NCCL_CALL(ncclCommUserRank(comm, &rank));
+
 	if (r < 2 || size < 2) {
 		std::cout << "Error: ncclBruck requires r >= 2 and nProc >= 2" << std::endl;
+		return;
 	}
 
-    // TODO: should be sizeof(type)
-    int unit_size = send_count * sizeof(int);
+    int unit_size = send_count * ncclTypeSize(send_type);
 	int w = std::ceil(std::log(size) / std::log(r));
 	int nlpow = myPow(r, w - 1);
 	int d = (myPow(r, w) - size) / nlpow;

@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
     
     int count;
     CUDA_CALL(cudaGetDeviceCount(&count))
-    std::cout << "Process " << rank << ": There are " << count << "CUDA devices available" << std::endl; 
+    std::cout << "Process " << rank << ": There are " << count << " CUDA devices available" << std::endl; 
 
     // Figure out what host the current MPI process is running on
     uint64_t hostHashs[size];
