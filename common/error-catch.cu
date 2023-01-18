@@ -1,4 +1,6 @@
 // Source: https://github.com/FZJ-JSC/tutorial-multi-gpu
+#include "hostname.cu"
+
 #define CUDACHECK(cmd) do {                         \
   cudaError_t err = cmd;                            \
   if( err != cudaSuccess ) {                        \
@@ -7,7 +9,7 @@
     printf("%s: Test CUDA failure %s:%d '%s'\n",    \
          hostname,                                  \
         __FILE__,__LINE__,cudaGetErrorString(err)); \
-    return 2;                           \
+    return;                           \
   }                                                 \
 } while(0)
 
@@ -22,7 +24,7 @@
            hostname,__FILE__,__LINE__,              \
            ncclGetErrorString(res),                 \
            ncclGetLastError(NULL));                 \
-    return 3;                           \
+    return;                           \
   }                                                 \
 } while(0)
 #else

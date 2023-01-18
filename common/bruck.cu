@@ -3,6 +3,7 @@
 #include <cstring>
 #include <vector>
 
+#include "cuda_runtime.h"
 #include "nccl.h"
 
 #include "error-catch.cu"
@@ -120,4 +121,5 @@ void ncclBruck(int r, char* d_send_data, int send_count, ncclDataType_t send_typ
 	}
 
     CUDACHECK(cudaFree(temp_buffer));
+	return;
 }

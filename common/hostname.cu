@@ -1,4 +1,5 @@
 // Source: https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/examples.html#communicator-creation-and-destruction-examples
+#pragma once
 #include <stdint.h>
 #include <unistd.h>
 
