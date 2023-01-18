@@ -88,9 +88,9 @@ int main(int argc, char* argv[])
     cudaEventSynchronize(stop);
 
     // Compute elapsed time
-    float elapsedTime;
-    cudaEventElapsedTime(&elapsedTime, start, stop);
-    std::cout << "Rank " << rank << ": elapsed all-to-all time: " << elapsedTime << " ms" << std::endl;
+    float localElapsedTime;
+    cudaEventElapsedTime(&localElapsedTime, start, stop);
+    std::cout << "Rank " << rank << ": elapsed all-to-all time: " << localElapsedTime << " ms" << std::endl;
 
     // Destroy CUDA events
     cudaEventDestroy(start);
@@ -103,6 +103,13 @@ int main(int argc, char* argv[])
         std::cout << " " << h_recv_data[i] << " ";
     }
     std::cout << "]" << std::endl;
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    float elapsedTime;
+    MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
+    if (rank == 0) {
+        std::cout << "Max elapsed all-to-all time across ranks: " << elapsedTime << " ms" << std::endl;
+    }
 
     // Free all device variables
     CUDACHECK(cudaFree(d_send_data));

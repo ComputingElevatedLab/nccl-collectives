@@ -34,14 +34,22 @@ int main(int argc, char** argv) {
 
   // Compute elapsed time
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-  std::cout << "Rank " << rank << ": elapsed all-to-all time: " << duration.count() << " ms" << std::endl;
+  const float localElapsedTime = duration.count();
+  // std::cout << "Rank " << rank << " elapsed all-to-all time: " << localElapsedTime << " ms" << std::endl;
 
-  // Verify that all processes have the same thing in their recieve buffer
+  // Verify that all ranks have the same thing in their recieve buffer
   std::cout << "Rank " << rank << ": received data: [";
   for (int i = 0; i < size; i++) {
     std::cout << " " << recv_data[i] << " ";
   }
   std::cout << "]" << std::endl;
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  float elapsedTime;
+  MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
+  if (rank == 0) {
+    std::cout << "Max elapsed all-to-all time across ranks: " << elapsedTime << " ms" << std::endl;
+  }
 
   // Finalize MPI
   MPICHECK(MPI_Finalize());
