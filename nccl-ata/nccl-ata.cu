@@ -68,16 +68,25 @@ int main(int argc, char* argv[])
     CUDACHECK(cudaSetDevice(local_rank));
     CUDACHECK(cudaMalloc((void **) &d_send_data, size * sizeof(int)));
     CUDACHECK(cudaMalloc((void **) &d_recv_data, size * sizeof(int)));
-    CUDACHECK(cudaMemcpy(d_send_data, h_send_data, size * sizeof(int), cudaMemcpyHostToDevice));
+    CUDACHECK(cudaMemcpy(d_send_data, h_send_data, size * sizeof(int), cudaMemcpyDefault));
     CUDACHECK(cudaStreamCreate(&stream));
 
     // Initialize NCCL
     ncclComm_t comm;
     NCCLCHECK(ncclCommInitRank(&comm, size, id, rank));
 
-    const int num_executions = 10;
+    // Warm up
+    ncclGroupStart();
+    for (int j = 0; j < size; j++) {
+        ncclSend((void *) &d_send_data[j], 1, ncclInt, j, comm, stream);
+        ncclRecv((void *) &d_recv_data[j], 1, ncclInt, j, comm, stream);
+    }
+    ncclGroupEnd();
+
+    const int num_executions = 100;
     std::vector<float> times(num_executions);
     for (int i = 0; i < num_executions; i++) {
+        CUDACHECK(cudaMemcpy(d_send_data, h_send_data, size * sizeof(int), cudaMemcpyDefault));
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
@@ -85,9 +94,9 @@ int main(int argc, char* argv[])
         // Perform all-to-all to send and receive each rank
         cudaEventRecord(start, 0);
         ncclGroupStart();
-        for (int i = 0; i < size; i++) {
-            ncclSend((void *) &d_send_data[i], 1, ncclInt, i, comm, stream);
-            ncclRecv((void *) &d_recv_data[i], 1, ncclInt, i, comm, stream);
+        for (int j = 0; j < size; j++) {
+            ncclSend((void *) &d_send_data[j], 1, ncclInt, j, comm, stream);
+            ncclRecv((void *) &d_recv_data[j], 1, ncclInt, j, comm, stream);
         }
         ncclGroupEnd();
         cudaEventRecord(stop, 0);

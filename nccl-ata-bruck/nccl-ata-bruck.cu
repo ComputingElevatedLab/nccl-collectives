@@ -69,7 +69,6 @@ int main(int argc, char* argv[])
     CUDACHECK(cudaSetDevice(local_rank));
     CUDACHECK(cudaMalloc((void**) &d_send_data, size * bytes));
     CUDACHECK(cudaMalloc((void**) &d_recv_data, size * bytes));
-    CUDACHECK(cudaMemset(d_recv_data, 0, size * bytes));
     CUDACHECK(cudaMemcpy(d_send_data, h_send_data, size * bytes, cudaMemcpyDefault));
     CUDACHECK(cudaStreamCreate(&stream));
 
@@ -77,16 +76,20 @@ int main(int argc, char* argv[])
     ncclComm_t comm;
     NCCLCHECK(ncclCommInitRank(&comm, size, id, rank));
 
-    const int num_executions = 10;
+    // Warm up
+    ncclBruck(2, (char*) d_send_data, 1, ncclInt, (char*) d_recv_data, 1, ncclInt, comm, stream);
+
+    const int num_executions = 100;
     std::vector<float> times(num_executions);
     for (int i = 0; i < num_executions; i++) {
+        CUDACHECK(cudaMemcpy(d_send_data, h_send_data, size * bytes, cudaMemcpyDefault));
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
         // Perform all-to-all to send and receive
         cudaEventRecord(start, 0);
-        ncclBruck(2, (char*) d_send_data, 1, ncclDouble, (char*) d_recv_data, 1, ncclDouble, comm, stream);
+        ncclBruck(2, (char*) d_send_data, 1, ncclInt, (char*) d_recv_data, 1, ncclInt, comm, stream);
         cudaEventRecord(stop, 0);
         cudaEventSynchronize(stop);
 
