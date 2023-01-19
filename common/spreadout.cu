@@ -15,21 +15,16 @@ void ncclSpreadout(char* d_send_data, int send_count, ncclDataType_t send_type, 
 	int unit_size = send_count * ncclTypeSize(send_type);
     std::cout << "Rank " << rank << ": unit_size=" << unit_size << std::endl;
 
-    for (int i = 0; i < size; i++) {
-        int src = (rank + i) % size;
-        int dst = (rank - i + size) % size;
-        std::cout << "Rank " << rank << ": src=" << src << std::endl;
-        std::cout << "Rank " << rank << ": dst=" << dst << std::endl;
-    }
-
     NCCLCHECK(ncclGroupStart());
     for (int i = 0; i < size; i++) {
         int src = (rank + i) % size;
-        int dst = (rank - i + size) % size;
-        NCCLCHECK(ncclSend(&d_send_data[dst * send_count * unit_size], send_count * unit_size, send_type, dst, comm, stream));
+        std::cout << "Rank " << rank << ": src=" << src << std::endl;
         NCCLCHECK(ncclRecv(&d_recv_data[src * recv_count * unit_size], recv_count * unit_size, recv_type, src, comm, stream));
-        
+    }
+    for (int i = 0; i < size; i++) {
+        int dst = (rank - i + size) % size;
+        std::cout << "Rank " << rank << ": dst=" << dst << std::endl;
+        NCCLCHECK(ncclSend(&d_send_data[dst * send_count * unit_size], send_count * unit_size, send_type, dst, comm, stream));
     }
     NCCLCHECK(ncclGroupEnd());
-    std::cout << "Rank " << rank << ": end" << std::endl;
 }

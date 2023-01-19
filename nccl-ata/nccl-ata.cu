@@ -1,5 +1,7 @@
 // Source: https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/examples.html#communicator-creation-and-destruction-examples
 #include <iostream>
+#include <numeric>
+#include <vector>
 
 #include <mpi.h>
 #include <nccl.h>
@@ -73,29 +75,39 @@ int main(int argc, char* argv[])
     ncclComm_t comm;
     NCCLCHECK(ncclCommInitRank(&comm, size, id, rank));
 
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
+    const int num_executions = 10;
+    std::vector<float> times(num_executions);
+    for (int i = 0; i < num_executions; i++) {
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
 
-    // Perform all-to-all to send and receive each rank
-    cudaEventRecord(start, 0);
-    ncclGroupStart();
-    for (int i = 0; i < size; i++) {
-        ncclSend((void *) &d_send_data[i], 1, ncclInt, i, comm, stream);
-        ncclRecv((void *) &d_recv_data[i], 1, ncclInt, i, comm, stream);
+        // Perform all-to-all to send and receive each rank
+        cudaEventRecord(start, 0);
+        ncclGroupStart();
+        for (int i = 0; i < size; i++) {
+            ncclSend((void *) &d_send_data[i], 1, ncclInt, i, comm, stream);
+            ncclRecv((void *) &d_recv_data[i], 1, ncclInt, i, comm, stream);
+        }
+        ncclGroupEnd();
+        cudaEventRecord(stop, 0);
+        cudaEventSynchronize(stop);
+
+        // Compute elapsed time
+        float localElapsedTime;
+        cudaEventElapsedTime(&localElapsedTime, start, stop);
+
+        // Destroy CUDA events
+        cudaEventDestroy(start);
+        cudaEventDestroy(stop);
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        float elapsedTime;
+        MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
+        if (rank == 0){
+            times[i] = localElapsedTime;
+        }
     }
-    ncclGroupEnd();
-    cudaEventRecord(stop, 0);
-    cudaEventSynchronize(stop);
-
-    // Compute elapsed time
-    float localElapsedTime;
-    cudaEventElapsedTime(&localElapsedTime, start, stop);
-    // std::cout << "Rank " << rank << ": elapsed all-to-all time: " << localElapsedTime << " ms" << std::endl;
-
-    // Destroy CUDA events
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
 
     // Verify that all ranks have the same thing in their recieve buffer
     CUDACHECK(cudaMemcpy(h_recv_data, d_recv_data, size * sizeof(int), cudaMemcpyDeviceToHost));
@@ -105,11 +117,12 @@ int main(int argc, char* argv[])
     }
     std::cout << "]" << std::endl;
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    float elapsedTime;
-    MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
     if (rank == 0) {
-        std::cout << "Max elapsed all-to-all time across ranks: " << elapsedTime << " ms" << std::endl;
+        float sum = 0;
+        for (int i = 0; i < num_executions; i++) {
+            sum += times[i];
+        }
+        std::cout << "Average elapsed all-to-all time across " << num_executions << " executions: " << sum / num_executions << " ms" << std::endl;
     }
 
     // Free all device variables
