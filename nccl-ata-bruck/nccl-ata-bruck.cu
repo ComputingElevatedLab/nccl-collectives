@@ -53,9 +53,9 @@ int main(int argc, char* argv[])
     MPICHECK(MPI_Bcast((void*) &id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
 
     // Allocate memory for host variables
-    int bytes = sizeof(double);
-    double h_send_data[size];
-    double h_recv_data[size];
+    int bytes = sizeof(int);
+    int h_send_data[size];
+    int h_recv_data[size];
 
     // Fill the send buffer with each process rank
     for (int i = 0; i < size; i++) {
@@ -64,8 +64,8 @@ int main(int argc, char* argv[])
 
     // Allocate memory for device variables
     cudaStream_t stream;
-    double* d_send_data = nullptr;
-    double* d_recv_data = nullptr;
+    int* d_send_data = nullptr;
+    int* d_recv_data = nullptr;
     CUDACHECK(cudaSetDevice(local_rank));
     CUDACHECK(cudaMalloc((void**) &d_send_data, size * bytes));
     CUDACHECK(cudaMalloc((void**) &d_recv_data, size * bytes));

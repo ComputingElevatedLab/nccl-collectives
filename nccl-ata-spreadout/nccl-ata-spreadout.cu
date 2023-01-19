@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
 
     // Perform all-to-all to send and receive
     cudaEventRecord(start, 0);
-    ncclSpreadout((char*) d_send_data, 1, ncclDouble, (char*) d_recv_data, 1, ncclInt, comm, stream);
+    ncclSpreadout((char*) d_send_data, 1, ncclInt, (char*) d_recv_data, 1, ncclInt, comm, stream);
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
 

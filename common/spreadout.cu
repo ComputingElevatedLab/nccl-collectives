@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "cuda_runtime.h"
 #include "nccl.h"
 
@@ -11,13 +13,23 @@ void ncclSpreadout(char* d_send_data, int send_count, ncclDataType_t send_type, 
 	NCCLCHECK(ncclCommUserRank(comm, &rank));
 
 	int unit_size = send_count * ncclTypeSize(send_type);
+    std::cout << "Rank " << rank << ": unit_size=" << unit_size << std::endl;
+
+    for (int i = 0; i < size; i++) {
+        int src = (rank + i) % size;
+        int dst = (rank - i + size) % size;
+        std::cout << "Rank " << rank << ": src=" << src << std::endl;
+        std::cout << "Rank " << rank << ": dst=" << dst << std::endl;
+    }
 
     NCCLCHECK(ncclGroupStart());
     for (int i = 0; i < size; i++) {
-        int send_rank = (rank - i + size) % size;
-        int recv_rank = (rank + i) % size;
-        NCCLCHECK(ncclSend(&d_send_data[send_rank * send_count * unit_size], send_count * unit_size, send_type, send_rank, comm, stream));
-        NCCLCHECK(ncclRecv(&d_recv_data[recv_rank * recv_count * unit_size], recv_count * unit_size, recv_type, recv_rank, comm, stream));
+        int src = (rank + i) % size;
+        int dst = (rank - i + size) % size;
+        NCCLCHECK(ncclSend(&d_send_data[dst * send_count * unit_size], send_count * unit_size, send_type, dst, comm, stream));
+        NCCLCHECK(ncclRecv(&d_recv_data[src * recv_count * unit_size], recv_count * unit_size, recv_type, src, comm, stream));
+        
     }
     NCCLCHECK(ncclGroupEnd());
+    std::cout << "Rank " << rank << ": end" << std::endl;
 }
