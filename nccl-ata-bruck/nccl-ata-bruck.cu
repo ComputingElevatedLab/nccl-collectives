@@ -23,7 +23,8 @@ int main(int argc, char* argv[])
     int count;
     CUDACHECK(cudaGetDeviceCount(&count));
     if (rank == 0) {
-        std::cout << "There are " << count << " CUDA devices available" << std::endl; 
+        std::cout << "nccl-ata-bruck" << std::endl;
+        std::cout << "CUDA devices available: " << count << std::endl; 
     }
 
     // Figure out what host the current MPI process is running on
@@ -53,7 +54,7 @@ int main(int argc, char* argv[])
     MPICHECK(MPI_Bcast((void*) &id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
 
     // Allocate memory for host variables
-    int bytes = sizeof(int);
+    const int bytes = size * sizeof(int);
     int* h_send_data = new int[size];
     int* h_recv_data = new int[size];
 
@@ -67,9 +68,9 @@ int main(int argc, char* argv[])
     int* d_send_data = nullptr;
     int* d_recv_data = nullptr;
     CUDACHECK(cudaSetDevice(local_rank));
-    CUDACHECK(cudaMalloc((void**) &d_send_data, size * bytes));
-    CUDACHECK(cudaMalloc((void**) &d_recv_data, size * bytes));
-    CUDACHECK(cudaMemcpy(d_send_data, h_send_data, size * bytes, cudaMemcpyDefault));
+    CUDACHECK(cudaMalloc((void**) &d_send_data, bytes));
+    CUDACHECK(cudaMalloc((void**) &d_recv_data, bytes));
+    CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
     CUDACHECK(cudaStreamCreate(&stream));
 
     // Initialize NCCL
@@ -78,8 +79,8 @@ int main(int argc, char* argv[])
 
     // Warm-up loop
     for (int i = 0; i < 5; i++) {
-        CUDACHECK(cudaMemcpy(d_send_data, h_send_data, size * bytes, cudaMemcpyDefault));
-        CUDACHECK(cudaMemset(d_recv_data, 0, size * bytes));
+        CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
+        CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
         MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
         ncclBruck(2, (char*) d_send_data, 1, ncclInt, (char*) d_recv_data, 1, ncclInt, comm, stream);
     }
@@ -89,8 +90,8 @@ int main(int argc, char* argv[])
     std::vector<float> times(num_executions);
     for (int i = 0; i < num_executions; i++) {
         // Reset send data
-        CUDACHECK(cudaMemcpy(d_send_data, h_send_data, size * bytes, cudaMemcpyDefault));
-        CUDACHECK(cudaMemset(d_recv_data, 0, size * bytes));
+        CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
+        CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
         MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
 
         // Setup a new timer
@@ -122,7 +123,7 @@ int main(int argc, char* argv[])
     }
 
     // Verify that all processes have the same thing in their recieve buffer
-    CUDACHECK(cudaMemcpy(h_recv_data, d_recv_data, size * bytes, cudaMemcpyDefault));
+    CUDACHECK(cudaMemcpy(h_recv_data, d_recv_data, bytes, cudaMemcpyDefault));
     std::cout << "Rank " << rank << ": received data: [";
     for (int i = 0; i < size; i++) {
         std::cout << " " << h_recv_data[i] << " ";
@@ -134,7 +135,8 @@ int main(int argc, char* argv[])
         for (int i = 0; i < num_executions; i++) {
             sum += times[i];
         }
-        std::cout << "Average elapsed all-to-all time across " << num_executions << " executions: " << sum / num_executions << " ms" << std::endl;
+        float average = sum / num_executions;
+        std::cout << "Average elapsed time for " << num_executions << " executions: " << average << " ms" << std::endl;
     }
 
     // Free all host variables

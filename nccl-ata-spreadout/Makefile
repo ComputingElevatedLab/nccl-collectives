@@ -20,5 +20,6 @@ debug:
 
 clean:
 	rm -f $(TARGET).out
+	rm -f *.log
 
 .PHONY.: build

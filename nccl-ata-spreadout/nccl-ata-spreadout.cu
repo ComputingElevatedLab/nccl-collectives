@@ -23,6 +23,7 @@ int main(int argc, char* argv[])
     int count;
     CUDACHECK(cudaGetDeviceCount(&count));
     if (rank == 0) {
+        std::cout << "nccl-ata-spreadout" << std::endl;
         std::cout << "There are " << count << " CUDA devices available" << std::endl; 
     }
 
