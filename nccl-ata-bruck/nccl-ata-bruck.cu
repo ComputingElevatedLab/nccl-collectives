@@ -54,8 +54,8 @@ int main(int argc, char* argv[])
 
     // Allocate memory for host variables
     int bytes = sizeof(int);
-    int h_send_data[size];
-    int h_recv_data[size];
+    int* h_send_data = new int[size];
+    int* h_recv_data = new int[size];
 
     // Fill the send buffer with each process rank
     for (int i = 0; i < size; i++) {
@@ -76,13 +76,24 @@ int main(int argc, char* argv[])
     ncclComm_t comm;
     NCCLCHECK(ncclCommInitRank(&comm, size, id, rank));
 
-    // Warm up
-    ncclBruck(2, (char*) d_send_data, 1, ncclInt, (char*) d_recv_data, 1, ncclInt, comm, stream);
+    // Warm-up loop
+    for (int i = 0; i < 5; i++) {
+        CUDACHECK(cudaMemcpy(d_send_data, h_send_data, size * bytes, cudaMemcpyDefault));
+        CUDACHECK(cudaMemset(d_recv_data, 0, size * bytes));
+        MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
+        ncclBruck(2, (char*) d_send_data, 1, ncclInt, (char*) d_recv_data, 1, ncclInt, comm, stream);
+    }
 
+    // Benchmark loop
     const int num_executions = 100;
     std::vector<float> times(num_executions);
     for (int i = 0; i < num_executions; i++) {
+        // Reset send data
         CUDACHECK(cudaMemcpy(d_send_data, h_send_data, size * bytes, cudaMemcpyDefault));
+        CUDACHECK(cudaMemset(d_recv_data, 0, size * bytes));
+        MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
+
+        // Setup a new timer
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
@@ -101,9 +112,10 @@ int main(int argc, char* argv[])
         cudaEventDestroy(start);
         cudaEventDestroy(stop);
 
-        MPI_Barrier(MPI_COMM_WORLD);
+        // Reduce and save results
+        MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
         float elapsedTime;
-        MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
+        MPICHECK(MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD));
         if (rank == 0){
             times[i] = localElapsedTime;
         }
@@ -124,6 +136,10 @@ int main(int argc, char* argv[])
         }
         std::cout << "Average elapsed all-to-all time across " << num_executions << " executions: " << sum / num_executions << " ms" << std::endl;
     }
+
+    // Free all host variables
+    delete[] h_send_data;
+    delete[] h_recv_data;
 
     // Free all device variables
     CUDACHECK(cudaFree(d_send_data));
