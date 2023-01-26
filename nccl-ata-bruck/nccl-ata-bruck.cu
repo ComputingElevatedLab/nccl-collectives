@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
     // Verify that all ranks have the same thing in their recieve buffer
     // CUDACHECK(cudaMemcpy(h_recv_data, d_recv_data, bytes, cudaMemcpyDefault));
     // std::cout << "Rank " << rank << " received data: [";
-    // for (int i = 0; i < size; i++) {
+    // for (int i = 0; i < buffer_size; i++) {
     //   std::cout << " " << h_recv_data[i] << " ";
     // }
     // std::cout << "]" << std::endl;
