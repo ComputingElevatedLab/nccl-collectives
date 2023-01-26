@@ -58,8 +58,8 @@ int main(int argc, char *argv[]) {
   ncclComm_t comm;
   cudaStream_t stream;
   CUDACHECK(cudaSetDevice(local_rank));
-  NCCLCHECK(ncclCommInitRank(&comm, size, id, rank));
   CUDACHECK(cudaStreamCreate(&stream));
+  NCCLCHECK(ncclCommInitRank(&comm, size, id, rank));
 
   // Host variables
   int *h_send_data;
@@ -71,10 +71,9 @@ int main(int argc, char *argv[]) {
 
   // Benchmark loop
   const int num_executions = 100;
-  for (int i = 1; i <= 1000000; i *= 10) {
+  for (int i = 1; i <= 1000; i *= 10) {
     // Send and recieve buffers must be the same size
-    int multiplier = 1 * i;
-    const int buffer_size = size * multiplier;
+    const int buffer_size = size * i;
     const int bytes = buffer_size * sizeof(int);
 
     h_send_data = new int[buffer_size];
@@ -89,6 +88,9 @@ int main(int argc, char *argv[]) {
     
     CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
     CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
+    if (rank == 0) {
+      std::cout << "Finished setting buffers" << std::endl;
+    }
 
     // Warm-up loop
     for (int j = 0; j < 5; j++) {
@@ -97,10 +99,14 @@ int main(int argc, char *argv[]) {
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
       NCCLCHECK(ncclGroupStart());
       for (int k = 0; k < buffer_size; k++) {
-        ncclSend((void*) &d_send_data[k], multiplier, ncclInt, k % size, comm, stream);
-        ncclRecv((void*) &d_recv_data[k], multiplier, ncclInt, k % size, comm, stream);
+        NCCLCHECK(ncclSend((void*) &d_send_data[k], i, ncclInt, k % size, comm, stream));
+        NCCLCHECK(ncclRecv((void*) &d_recv_data[k], i, ncclInt, k % size, comm, stream));
       }
       NCCLCHECK(ncclGroupEnd());
+    }
+
+    if (rank == 0) {
+      std::cout << "Finished warming up" << std::endl;
     }
 
     std::vector<float> times(num_executions);
@@ -112,27 +118,27 @@ int main(int argc, char *argv[]) {
 
       // Create CUDA events
       cudaEvent_t start, stop;
-      cudaEventCreate(&start);
-      cudaEventCreate(&stop);
+      CUDACHECK(cudaEventCreate(&start));
+      CUDACHECK(cudaEventCreate(&stop));
 
       // Perform all-to-all
       cudaEventRecord(start, 0);
       NCCLCHECK(ncclGroupStart());
-      for (int k = 0; k < size; k++) {
-        ncclSend((void*) &d_send_data[k * multiplier], multiplier, ncclInt, k, comm, stream);
-        ncclRecv((void*) &d_recv_data[k * multiplier], multiplier, ncclInt, k, comm, stream);
+      for (int k = 0; k < buffer_size; k++) {
+        NCCLCHECK(ncclSend((void*) &d_send_data[k], i, ncclInt, k % size, comm, stream));
+        NCCLCHECK(ncclRecv((void*) &d_recv_data[k], i, ncclInt, k % size, comm, stream));
       }
       NCCLCHECK(ncclGroupEnd());
-      cudaEventRecord(stop, 0);
-      cudaEventSynchronize(stop);
+      CUDACHECK(cudaEventRecord(stop, 0));
+      CUDACHECK(cudaEventSynchronize(stop));
 
       // Compute elapsed time
       float localElapsedTime;
-      cudaEventElapsedTime(&localElapsedTime, start, stop);
+      CUDACHECK(cudaEventElapsedTime(&localElapsedTime, start, stop));
 
       // Destroy CUDA events
-      cudaEventDestroy(start);
-      cudaEventDestroy(stop);
+      CUDACHECK(cudaEventDestroy(start));
+      CUDACHECK(cudaEventDestroy(stop));
 
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
       float elapsedTime;
@@ -140,6 +146,10 @@ int main(int argc, char *argv[]) {
       if (rank == 0) {
         times[j] = localElapsedTime;
       }
+    }
+
+    if (rank == 0) {
+      std::cout << "Finished benchmark loop" << std::endl;
     }
 
     MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
@@ -154,8 +164,10 @@ int main(int argc, char *argv[]) {
       log.open("run.log", std::ios_base::app);
       log << "nccl-ata w/ " << bytes << " byte buffer: " << average << " ms" << std::endl;
       log.close();
-    }
 
+      std::cout << "Finished " << bytes << "-size buffer benchmark" << std::endl;
+    }
+    
     // Verify that all ranks have the same thing in their recieve buffer
     // CUDACHECK(cudaMemcpy(h_recv_data, d_recv_data, bytes, cudaMemcpyDefault));
     // std::cout << "Rank " << rank << " received data: [";
@@ -164,11 +176,9 @@ int main(int argc, char *argv[]) {
     // }
     // std::cout << "]" << std::endl;
 
-    // Free all host variables
+    // Free all allocated variables
     delete[] h_send_data;
     delete[] h_recv_data;
-
-    // Free all device variables
     CUDACHECK(cudaFree(d_send_data));
     CUDACHECK(cudaFree(d_recv_data));
   }

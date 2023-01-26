@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
   const int num_executions = 100;
   for (int i = 1; i <= 1000000; i *= 10) {
     // Send and recieve buffers must be the same size
-    int multiplier = 1 * i;
+    int multiplier = i;
     const int buffer_size = size * multiplier;
     send_data = new int[buffer_size];
     recv_data = new int[buffer_size];

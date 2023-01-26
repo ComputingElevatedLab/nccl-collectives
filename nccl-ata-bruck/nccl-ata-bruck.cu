@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
   int count;
   CUDACHECK(cudaGetDeviceCount(&count));
   if (rank == 0) {
-    std::cout << "nccl-ata" << std::endl;
+    std::cout << "nccl-ata-bruck" << std::endl;
     std::cout << "CUDA devices available: " << count << std::endl;
   }
 
@@ -71,10 +71,9 @@ int main(int argc, char *argv[]) {
 
   // Benchmark loop
   const int num_executions = 100;
-  for (int i = 1; i <= 1000000; i *= 10) {
+  for (int i = 1; i <= 1000; i *= 10) {
     // Send and recieve buffers must be the same size
-    int multiplier = 1 * i;
-    const int buffer_size = size * multiplier;
+    const int buffer_size = size * i;
     const int bytes = buffer_size * sizeof(int);
 
     h_send_data = new int[buffer_size];
@@ -87,15 +86,20 @@ int main(int argc, char *argv[]) {
       h_send_data[j] = rank;
     }
     
-    CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
-    CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
+    if (rank == 0) {
+      std::cout << "Finished setting buffers" << std::endl;
+    }
 
     // Warm-up loop
     for (int j = 0; j < 5; j++) {
       CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
       CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
-      ncclBruck(2, (char*) d_send_data, multiplier, ncclInt, (char*) d_recv_data, multiplier, ncclInt, comm, stream);
+      ncclBruck(2, (char*) d_send_data, i, ncclInt, (char*) d_recv_data, i, ncclInt, comm, stream);
+    }
+
+    if (rank == 0) {
+      std::cout << "Finished warming up" << std::endl;
     }
 
     std::vector<float> times(num_executions);
@@ -107,22 +111,22 @@ int main(int argc, char *argv[]) {
 
       // Create CUDA events
       cudaEvent_t start, stop;
-      cudaEventCreate(&start);
-      cudaEventCreate(&stop);
+      CUDACHECK(cudaEventCreate(&start));
+      CUDACHECK(cudaEventCreate(&stop));
 
       // Perform all-to-all
-      cudaEventRecord(start, 0);
-      ncclBruck(2, (char*) d_send_data, multiplier, ncclInt, (char*) d_recv_data, multiplier, ncclInt, comm, stream);
-      cudaEventRecord(stop, 0);
-      cudaEventSynchronize(stop);
+      CUDACHECK(cudaEventRecord(start, 0));
+      ncclBruck(2, (char*) d_send_data, i, ncclInt, (char*) d_recv_data, i, ncclInt, comm, stream);
+      CUDACHECK(cudaEventRecord(stop, 0));
+      CUDACHECK(cudaEventSynchronize(stop));
 
       // Compute elapsed time
       float localElapsedTime;
-      cudaEventElapsedTime(&localElapsedTime, start, stop);
+      CUDACHECK(cudaEventElapsedTime(&localElapsedTime, start, stop));
 
       // Destroy CUDA events
-      cudaEventDestroy(start);
-      cudaEventDestroy(stop);
+      CUDACHECK(cudaEventDestroy(start));
+      CUDACHECK(cudaEventDestroy(stop));
 
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
       float elapsedTime;
@@ -130,6 +134,10 @@ int main(int argc, char *argv[]) {
       if (rank == 0) {
         times[j] = localElapsedTime;
       }
+    }
+
+    if (rank == 0) {
+      std::cout << "Finished benchmark loop" << std::endl;
     }
 
     MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
@@ -142,10 +150,12 @@ int main(int argc, char *argv[]) {
 
       std::ofstream log;
       log.open("run.log", std::ios_base::app);
-      log << "nccl-ata w/ " << bytes << " byte buffer: " << average << " ms" << std::endl;
+      log << "nccl-ata-bruck w/ " << bytes << " byte buffer: " << average << " ms" << std::endl;
       log.close();
-    }
 
+      std::cout << "Finished " << bytes << "-size buffer benchmark" << std::endl;
+    }
+    
     // Verify that all ranks have the same thing in their recieve buffer
     // CUDACHECK(cudaMemcpy(h_recv_data, d_recv_data, bytes, cudaMemcpyDefault));
     // std::cout << "Rank " << rank << " received data: [";
@@ -154,17 +164,15 @@ int main(int argc, char *argv[]) {
     // }
     // std::cout << "]" << std::endl;
 
-    // Free all host variables
+    // Free all allocated variables
     delete[] h_send_data;
     delete[] h_recv_data;
-
-    // Free all device variables
     CUDACHECK(cudaFree(d_send_data));
     CUDACHECK(cudaFree(d_recv_data));
   }
 
   // Destroy NCCL communicator
-  ncclCommDestroy(comm);
+  NCCLCHECK(ncclCommDestroy(comm));
 
   // Finalize MPI
   MPICHECK(MPI_Finalize());
