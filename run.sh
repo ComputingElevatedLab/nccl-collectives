@@ -1,5 +1,5 @@
 #! /bin/bash
-#COBALT -n 10 -t 0:30:00 -q full-node -A dist_relational_alg
+#COBALT -n 10 -t 0:30:00 -q full-node -A dist_relational_alg --attrs filesystems=home,grand,theta-fs0
 
 NODES=10
 GPUS=8
