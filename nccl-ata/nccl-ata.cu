@@ -34,8 +34,7 @@ int main(int argc, char *argv[]) {
   char hostname[1024];
   getHostName(hostname, 1024);
   hostHashs[rank] = getHostHash(hostname);
-  MPICHECK(MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, hostHashs,
-                         sizeof(uint64_t), MPI_BYTE, MPI_COMM_WORLD));
+  MPICHECK(MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, hostHashs, sizeof(uint64_t), MPI_BYTE, MPI_COMM_WORLD));
 
   // Compute and set the local rank based on the hostname
   int local_rank = 0;
@@ -84,8 +83,8 @@ int main(int argc, char *argv[]) {
     CUDACHECK(cudaMalloc((void**) &d_recv_data, bytes));
 
     // Fill the send buffer with each process rank
-    for (int i = 0; i < buffer_size; i++) {
-      h_send_data[i] = rank;
+    for (int j = 0; j < buffer_size; j++) {
+      h_send_data[j] = rank;
     }
     
     CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
@@ -97,9 +96,9 @@ int main(int argc, char *argv[]) {
       CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
       NCCLCHECK(ncclGroupStart());
-      for (int k = 0; k < size; k++) {
-        ncclSend((void*) &d_send_data[k * multiplier], multiplier, ncclInt, k, comm, stream);
-        ncclRecv((void*) &d_recv_data[k * multiplier], multiplier, ncclInt, k, comm, stream);
+      for (int k = 0; k < buffer_size; k++) {
+        ncclSend((void*) &d_send_data[k], multiplier, ncclInt, k % size, comm, stream);
+        ncclRecv((void*) &d_recv_data[k], multiplier, ncclInt, k % size, comm, stream);
       }
       NCCLCHECK(ncclGroupEnd());
     }
@@ -143,6 +142,7 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
     if (rank == 0) {
       float sum = 0;
       for (int i = 0; i < num_executions; i++) {
@@ -157,12 +157,12 @@ int main(int argc, char *argv[]) {
     }
 
     // Verify that all ranks have the same thing in their recieve buffer
-    CUDACHECK(cudaMemcpy(h_recv_data, d_recv_data, bytes, cudaMemcpyDefault));
-    std::cout << "Rank " << rank << " received data: [";
-    for (int i = 0; i < size; i++) {
-      std::cout << " " << h_recv_data[i] << " ";
-    }
-    std::cout << "]" << std::endl;
+    // CUDACHECK(cudaMemcpy(h_recv_data, d_recv_data, bytes, cudaMemcpyDefault));
+    // std::cout << "Rank " << rank << " received data: [";
+    // for (int i = 0; i < size; i++) {
+    //   std::cout << " " << h_recv_data[i] << " ";
+    // }
+    // std::cout << "]" << std::endl;
 
     // Free all host variables
     delete[] h_send_data;

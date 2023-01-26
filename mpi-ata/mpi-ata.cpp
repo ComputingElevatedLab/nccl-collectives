@@ -19,6 +19,7 @@ int main(int argc, char** argv) {
   MPICHECK(MPI_Comm_size(MPI_COMM_WORLD, &size));
   MPICHECK(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
 
+  // Allocated variables
   int* send_data;
   int* recv_data;
 
@@ -88,11 +89,11 @@ int main(int argc, char** argv) {
     }
 
     // Verify that all ranks have the same thing in their recieve buffer
-    std::cout << "Rank " << rank << " received data: [";
-    for (int i = 0; i < buffer_size; i++) {
-      std::cout << " " << recv_data[i] << " ";
-    }
-    std::cout << "]" << std::endl;
+    // std::cout << "Rank " << rank << " received data: [";
+    // for (int i = 0; i < buffer_size; i++) {
+    //   std::cout << " " << recv_data[i] << " ";
+    // }
+    // std::cout << "]" << std::endl;
 
     // Free allocated memory
     delete[] send_data;

@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
   int count;
   CUDACHECK(cudaGetDeviceCount(&count));
   if (rank == 0) {
-    std::cout << "nccl-ata-bruck" << std::endl;
+    std::cout << "nccl-ata" << std::endl;
     std::cout << "CUDA devices available: " << count << std::endl;
   }
 
@@ -83,8 +83,8 @@ int main(int argc, char *argv[]) {
     CUDACHECK(cudaMalloc((void**) &d_recv_data, bytes));
 
     // Fill the send buffer with each process rank
-    for (int i = 0; i < buffer_size; i++) {
-      h_send_data[i] = rank;
+    for (int j = 0; j < buffer_size; j++) {
+      h_send_data[j] = rank;
     }
     
     CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
@@ -132,6 +132,7 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
     if (rank == 0) {
       float sum = 0;
       for (int i = 0; i < num_executions; i++) {
@@ -141,17 +142,17 @@ int main(int argc, char *argv[]) {
 
       std::ofstream log;
       log.open("run.log", std::ios_base::app);
-      log << "nccl-ata-bruck w/ " << bytes << " byte buffer: " << average << " ms" << std::endl;
+      log << "nccl-ata w/ " << bytes << " byte buffer: " << average << " ms" << std::endl;
       log.close();
     }
 
     // Verify that all ranks have the same thing in their recieve buffer
-    CUDACHECK(cudaMemcpy(h_recv_data, d_recv_data, bytes, cudaMemcpyDefault));
-    std::cout << "Rank " << rank << " received data: [";
-    for (int i = 0; i < size; i++) {
-      std::cout << " " << h_recv_data[i] << " ";
-    }
-    std::cout << "]" << std::endl;
+    // CUDACHECK(cudaMemcpy(h_recv_data, d_recv_data, bytes, cudaMemcpyDefault));
+    // std::cout << "Rank " << rank << " received data: [";
+    // for (int i = 0; i < size; i++) {
+    //   std::cout << " " << h_recv_data[i] << " ";
+    // }
+    // std::cout << "]" << std::endl;
 
     // Free all host variables
     delete[] h_send_data;
