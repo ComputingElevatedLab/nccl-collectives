@@ -1,4 +1,5 @@
 #include <chrono>
+#include <fstream>
 #include <iostream>
 
 #include <mpi.h>
@@ -48,7 +49,10 @@ int main(int argc, char** argv) {
   float elapsedTime;
   MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
   if (rank == 0) {
-    std::cout << "Max elapsed all-to-all time across ranks: " << elapsedTime << " ms" << std::endl;
+    std::ofstream log;
+    log.open ("run.log", std::ios_base::app);
+    log << "mpi-ata-spreadout: " << elapsedTime << " ms" << std::endl;
+    log.close();
   }
 
   // Finalize MPI

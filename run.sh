@@ -6,14 +6,15 @@ GPUS=8
 NPROC=$(($NODES * $GPUS))
 
 module load nccl
+rm run.log
 make clean
 make all
 
 # CPU
-# mpirun -n $NPROC ./mpi-ata/mpi-ata.out > mpi-ata/run.log
-# mpirun -n $NPROC ./mpi-ata-bruck/mpi-ata-bruck.out > mpi-ata-bruck/run.log
-# mpirun -n $NPROC ./mpi-ata-spreadout/mpi-ata-spreadout.out > mpi-ata-spreadout/run.log
+# mpirun -n $NPROC ./mpi-ata/mpi-ata.out
+# mpirun -n $NPROC ./mpi-ata-bruck/mpi-ata-bruck.out
+# mpirun -n $NPROC ./mpi-ata-spreadout/mpi-ata-spreadout.out
 
 # GPU
-mpirun -hostfile $COBALT_NODEFILE -n $NPROC -npernode $GPUS ./nccl-ata/nccl-ata.out > nccl-ata/run.log
-mpirun -hostfile $COBALT_NODEFILE -n $NPROC -npernode $GPUS ./nccl-ata-bruck/nccl-ata-bruck.out > nccl-ata-bruck/run.log
+mpirun -hostfile $COBALT_NODEFILE -n $NPROC -npernode $GPUS ./nccl-ata/nccl-ata.out
+mpirun -hostfile $COBALT_NODEFILE -n $NPROC -npernode $GPUS ./nccl-ata-bruck/nccl-ata-bruck.out

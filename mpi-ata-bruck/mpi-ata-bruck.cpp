@@ -1,4 +1,5 @@
 #include <chrono>
+#include <fstream>
 #include <iostream>
 
 #include <mpi.h>
@@ -35,7 +36,6 @@ int main(int argc, char** argv) {
   // Compute elapsed time
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
   const float localElapsedTime = duration.count();
-  // std::cout << "Rank " << rank << " elapsed all-to-all time: " << localElapsedTime << " ms" << std::endl;
 
   // Verify that all ranks have the same thing in their recieve buffer
   std::cout << "Rank " << rank << ": received data: [";
@@ -47,8 +47,12 @@ int main(int argc, char** argv) {
   MPI_Barrier(MPI_COMM_WORLD);
   float elapsedTime;
   MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
+
   if (rank == 0) {
-    std::cout << "Max elapsed all-to-all time across ranks: " << elapsedTime << " ms" << std::endl;
+    std::ofstream log;
+    log.open ("run.log", std::ios_base::app);
+    log << "mpi-ata-bruck: " << elapsedTime << " ms" << std::endl;
+    log.close();
   }
 
   // Finalize MPI

@@ -1,4 +1,5 @@
 // Source: https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/examples.html#communicator-creation-and-destruction-examples
+#include <fstream>
 #include <iostream>
 
 #include <mpi.h>
@@ -136,7 +137,11 @@ int main(int argc, char* argv[])
             sum += times[i];
         }
         float average = sum / num_executions;
-        std::cout << "Average elapsed time for " << num_executions << " executions: " << average << " ms" << std::endl;
+        
+        std::ofstream log;
+        log.open ("run.log", std::ios_base::app);
+        log << "nccl-ata-bruck | " << num_executions << " executions | " << bytes << " bytes:" << average << " ms" << std::endl;
+        log.close();
     }
 
     // Free all host variables
