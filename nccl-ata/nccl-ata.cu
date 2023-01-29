@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
   for (int i = 100; i <= 10000; i += 100)
   {
     // Send and recieve buffers must be the same size
-    const int buffer_size = i;
+    const int buffer_size = size * i;
     const int bytes = buffer_size * sizeof(int);
 
     h_send_data = new int[buffer_size];
@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
 
       std::ofstream log;
       log.open("run.log", std::ios_base::app);
-      log << "nccl-ata w/ " << bytes << " byte buffer: " << average << " ns" << std::endl;
+      log << "nccl-ata w/ " << i * sizeof(int) << " byte buffer: " << average << " ns" << std::endl;
       log.close();
 
       std::cout << "Finished " << bytes << "-size buffer benchmark" << std::endl;

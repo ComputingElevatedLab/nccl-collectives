@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
   for (int i = 100; i <= 10000; i += 100)
   {
     // Send and recieve buffers must be the same size
-    const int buffer_size = i;
+    const int buffer_size = size * i;
     const int bytes = buffer_size * sizeof(int);
 
     h_send_data = new int[buffer_size];
@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
       log << "nccl-ata-bruck w/ " << bytes << " byte buffer: " << average << " ns" << std::endl;
       log.close();
 
-      std::cout << "Finished " << bytes << "-size buffer benchmark" << std::endl;
+      std::cout << "Finished " << i * sizeof(int) << "-size buffer benchmark" << std::endl;
     }
 
     // Verify that all ranks have the same thing in their recieve buffer
