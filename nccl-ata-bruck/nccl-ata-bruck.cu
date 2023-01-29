@@ -1,5 +1,6 @@
 // Source: https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/examples.html
 #include <chrono>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <numeric>
@@ -28,7 +29,7 @@ int main(int argc, char *argv[])
   CUDACHECK(cudaGetDeviceCount(&count));
   if (rank == 0)
   {
-    std::cout << "nccl-ata-bruck" << std::endl;
+    std::cout << "nccl-ata" << std::endl;
     std::cout << "CUDA devices available: " << count << std::endl;
   }
 
@@ -65,8 +66,8 @@ int main(int argc, char *argv[])
   ncclComm_t comm;
   cudaStream_t stream;
   CUDACHECK(cudaSetDevice(local_rank));
-  NCCLCHECK(ncclCommInitRank(&comm, size, id, rank));
   CUDACHECK(cudaStreamCreate(&stream));
+  NCCLCHECK(ncclCommInitRank(&comm, size, id, rank));
 
   // Host variables
   int *h_send_data;
@@ -78,23 +79,26 @@ int main(int argc, char *argv[])
 
   // Benchmark loop
   const int num_executions = 100;
-  for (int i = 100; i <= 10000; i += 100)
+  for (int i = 100; i <= 2000; i += 100)
   {
     // Send and recieve buffers must be the same size
-    const int buffer_size = size * i;
-    const int bytes = buffer_size * sizeof(int);
+    const int64_t buffer_size = size * i;
+    const int64_t send_bytes = i * sizeof(int);
+    const int64_t recv_bytes = buffer_size * sizeof(int);
 
-    h_send_data = new int[buffer_size];
+    h_send_data = new int[i];
     h_recv_data = new int[buffer_size];
-    CUDACHECK(cudaMalloc((void **)&d_send_data, bytes));
-    CUDACHECK(cudaMalloc((void **)&d_recv_data, bytes));
+    CUDACHECK(cudaMalloc((void **)&d_send_data, send_bytes));
+    CUDACHECK(cudaMalloc((void **)&d_recv_data, recv_bytes));
 
     // Fill the send buffer with each process rank
-    for (int j = 0; j < buffer_size; j++)
+    for (int j = 0; j < i; j++)
     {
       h_send_data[j] = rank;
     }
 
+    CUDACHECK(cudaMemcpy(d_send_data, h_send_data, send_bytes, cudaMemcpyDefault));
+    CUDACHECK(cudaMemset(d_recv_data, 0, recv_bytes));
     if (rank == 0)
     {
       std::cout << "Finished setting buffers" << std::endl;
@@ -103,9 +107,9 @@ int main(int argc, char *argv[])
     // Warm-up loop
     for (int j = 0; j < 5; j++)
     {
-      CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
-      CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
-      MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
+      CUDACHECK(cudaMemcpy(d_send_data, h_send_data, send_bytes, cudaMemcpyDefault));
+      CUDACHECK(cudaMemset(d_recv_data, 0, recv_bytes));
+      CUDACHECK(cudaDeviceSynchronize());
       ncclBruck(2, (char *)d_send_data, i, ncclInt, (char *)d_recv_data, i, ncclInt, comm, stream);
     }
 
@@ -118,9 +122,9 @@ int main(int argc, char *argv[])
     for (int j = 0; j < num_executions; j++)
     {
       // Reset buffers
-      CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
-      CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
-      MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
+      CUDACHECK(cudaMemcpy(d_send_data, h_send_data, send_bytes, cudaMemcpyDefault));
+      CUDACHECK(cudaMemset(d_recv_data, 0, recv_bytes));
+      CUDACHECK(cudaDeviceSynchronize());
 
       // Perform all-to-all
       auto start = std::chrono::high_resolution_clock::now();
@@ -150,18 +154,18 @@ int main(int argc, char *argv[])
     if (rank == 0)
     {
       double sum = 0;
-      for (int i = 0; i < num_executions; i++)
+      for (int j = 0; j < num_executions; j++)
       {
-        sum += times[i];
+        sum += times[j];
       }
       double average = sum / num_executions;
 
       std::ofstream log;
       log.open("run.log", std::ios_base::app);
-      log << "nccl-ata-bruck w/ " << bytes << " byte buffer: " << average << " ns" << std::endl;
+      log << "nccl-ata w/ " << i * sizeof(int) << " bytes sent per GPU: " << average << " ns" << std::endl;
       log.close();
 
-      std::cout << "Finished " << i * sizeof(int) << "-size buffer benchmark" << std::endl;
+      std::cout << "Finished " << i * sizeof(int) << "-size byte benchmark" << std::endl;
     }
 
     // Verify that all ranks have the same thing in their recieve buffer
@@ -180,7 +184,7 @@ int main(int argc, char *argv[])
   }
 
   // Destroy NCCL communicator
-  NCCLCHECK(ncclCommDestroy(comm));
+  ncclCommDestroy(comm);
 
   // Finalize MPI
   MPICHECK(MPI_Finalize());
