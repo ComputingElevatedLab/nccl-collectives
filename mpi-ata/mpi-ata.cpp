@@ -8,7 +8,8 @@
 #include "../common/error-catch.cpp"
 
 // Distribute each process rank using MPI_Alltoall
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
 
   // Initialize MPI
   MPICHECK(MPI_Init(&argc, &argv));
@@ -20,12 +21,13 @@ int main(int argc, char** argv) {
   MPICHECK(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
 
   // Allocated variables
-  int* send_data;
-  int* recv_data;
+  int *send_data;
+  int *recv_data;
 
   // Benchmark loop
   const int num_executions = 100;
-  for (int i = 1; i <= 1000000; i *= 10) {
+  for (int i = 1; i <= 1000000; i *= 10)
+  {
     // Send and recieve buffers must be the same size
     int multiplier = i;
     const int buffer_size = size * multiplier;
@@ -33,13 +35,16 @@ int main(int argc, char** argv) {
     recv_data = new int[buffer_size];
 
     // Fill the send buffer with each process rank
-    for (int i = 0; i < buffer_size; i++) {
+    for (int i = 0; i < buffer_size; i++)
+    {
       send_data[i] = rank;
     }
 
     // Warm-up loop
-    for (int j = 0; j < 5; j++) {
-      for (int j = 0; j < buffer_size; j++) {
+    for (int j = 0; j < 5; j++)
+    {
+      for (int j = 0; j < buffer_size; j++)
+      {
         send_data[j] = rank;
         recv_data[j] = 0;
       }
@@ -48,9 +53,11 @@ int main(int argc, char** argv) {
     }
 
     std::vector<float> times(num_executions);
-    for (int j = 0; j < num_executions; j++) {
+    for (int j = 0; j < num_executions; j++)
+    {
       // Reset buffers
-      for (int k = 0; k < buffer_size; k++) {
+      for (int k = 0; k < buffer_size; k++)
+      {
         send_data[k] = rank;
         recv_data[k] = 0;
       }
@@ -68,21 +75,24 @@ int main(int argc, char** argv) {
       MPI_Barrier(MPI_COMM_WORLD);
       float elapsedTime;
       MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
-      if (rank == 0) {
+      if (rank == 0)
+      {
         times[j] = localElapsedTime;
       }
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-    if (rank == 0) {
+    if (rank == 0)
+    {
       float sum = 0;
-      for (int i = 0; i < num_executions; i++) {
+      for (int i = 0; i < num_executions; i++)
+      {
         sum += times[i];
       }
       float average = sum / num_executions;
 
       std::ofstream log;
-      log.open ("run.log", std::ios_base::app);
+      log.open("run.log", std::ios_base::app);
       log << "mpi-ata w/ " << buffer_size * sizeof(int)
           << " byte buffer: " << average << " ms" << std::endl;
       log.close();
@@ -99,7 +109,7 @@ int main(int argc, char** argv) {
     delete[] send_data;
     delete[] recv_data;
   }
-  
+
   // Finalize MPI
   MPICHECK(MPI_Finalize());
   return 0;

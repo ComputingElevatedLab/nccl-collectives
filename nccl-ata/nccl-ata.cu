@@ -1,5 +1,5 @@
-// Source:
-// https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/examples.html
+// Source: https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/examples.html
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <numeric>
@@ -12,7 +12,8 @@
 #include "../common/error-catch.cu"
 #include "../common/hostname.cu"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   // Initialize MPI
   MPICHECK(MPI_Init(&argc, &argv));
 
@@ -24,7 +25,8 @@ int main(int argc, char *argv[]) {
 
   int count;
   CUDACHECK(cudaGetDeviceCount(&count));
-  if (rank == 0) {
+  if (rank == 0)
+  {
     std::cout << "nccl-ata" << std::endl;
     std::cout << "CUDA devices available: " << count << std::endl;
   }
@@ -38,21 +40,25 @@ int main(int argc, char *argv[]) {
 
   // Compute and set the local rank based on the hostname
   int local_rank = 0;
-  for (int i = 0; i < size; i++) {
-    if (i == rank) {
+  for (int i = 0; i < size; i++)
+  {
+    if (i == rank)
+    {
       break;
     }
-    if (hostHashs[i] == hostHashs[rank]) {
+    if (hostHashs[i] == hostHashs[rank])
+    {
       local_rank++;
     }
   }
 
   // Initialize a unique NCCL ID at process 0 and broadcast it to all others
   ncclUniqueId id;
-  if (rank == 0) {
+  if (rank == 0)
+  {
     ncclGetUniqueId(&id);
   }
-  MPICHECK(MPI_Bcast((void*) &id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
+  MPICHECK(MPI_Bcast((void *)&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
 
   // Initialize NCCL
   ncclComm_t comm;
@@ -71,103 +77,106 @@ int main(int argc, char *argv[]) {
 
   // Benchmark loop
   const int num_executions = 100;
-  for (int i = 1; i <= 1000; i *= 10) {
+  for (int i = 100; i <= 10000; i += 100)
+  {
     // Send and recieve buffers must be the same size
-    const int buffer_size = size * i;
+    const int buffer_size = i;
     const int bytes = buffer_size * sizeof(int);
 
     h_send_data = new int[buffer_size];
     h_recv_data = new int[buffer_size];
-    CUDACHECK(cudaMalloc((void**) &d_send_data, bytes));
-    CUDACHECK(cudaMalloc((void**) &d_recv_data, bytes));
+    CUDACHECK(cudaMalloc((void **)&d_send_data, bytes));
+    CUDACHECK(cudaMalloc((void **)&d_recv_data, bytes));
 
     // Fill the send buffer with each process rank
-    for (int j = 0; j < buffer_size; j++) {
+    for (int j = 0; j < buffer_size; j++)
+    {
       h_send_data[j] = rank;
     }
-    
+
     CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
     CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
-    if (rank == 0) {
+    if (rank == 0)
+    {
       std::cout << "Finished setting buffers" << std::endl;
     }
 
     // Warm-up loop
-    for (int j = 0; j < 5; j++) {
+    for (int j = 0; j < 5; j++)
+    {
       CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
       CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
       NCCLCHECK(ncclGroupStart());
-      for (int k = 0; k < buffer_size; k++) {
-        NCCLCHECK(ncclSend((void*) &d_send_data[k], i, ncclInt, k % size, comm, stream));
-        NCCLCHECK(ncclRecv((void*) &d_recv_data[k], i, ncclInt, k % size, comm, stream));
+      for (int k = 0; k < buffer_size; k++)
+      {
+        NCCLCHECK(ncclSend((void *)&d_send_data[k], i, ncclInt, k % size, comm, stream));
+        NCCLCHECK(ncclRecv((void *)&d_recv_data[k], i, ncclInt, k % size, comm, stream));
       }
       NCCLCHECK(ncclGroupEnd());
     }
 
-    if (rank == 0) {
+    if (rank == 0)
+    {
       std::cout << "Finished warming up" << std::endl;
     }
 
-    std::vector<float> times(num_executions);
-    for (int j = 0; j < num_executions; j++) {
+    std::vector<double> times(num_executions);
+    for (int j = 0; j < num_executions; j++)
+    {
       // Reset buffers
       CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
       CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
 
-      // Create CUDA events
-      cudaEvent_t start, stop;
-      CUDACHECK(cudaEventCreate(&start));
-      CUDACHECK(cudaEventCreate(&stop));
-
       // Perform all-to-all
-      cudaEventRecord(start, 0);
+      auto start = std::chrono::high_resolution_clock::now();
       NCCLCHECK(ncclGroupStart());
-      for (int k = 0; k < buffer_size; k++) {
-        NCCLCHECK(ncclSend((void*) &d_send_data[k], i, ncclInt, k % size, comm, stream));
-        NCCLCHECK(ncclRecv((void*) &d_recv_data[k], i, ncclInt, k % size, comm, stream));
+      for (int k = 0; k < buffer_size; k++)
+      {
+        NCCLCHECK(ncclSend((void *)&d_send_data[k], i, ncclInt, k % size, comm, stream));
+        NCCLCHECK(ncclRecv((void *)&d_recv_data[k], i, ncclInt, k % size, comm, stream));
       }
       NCCLCHECK(ncclGroupEnd());
-      CUDACHECK(cudaEventRecord(stop, 0));
-      CUDACHECK(cudaEventSynchronize(stop));
+      CUDACHECK(cudaStreamSynchronize(stream));
+      auto stop = std::chrono::high_resolution_clock::now();
 
       // Compute elapsed time
-      float localElapsedTime;
-      CUDACHECK(cudaEventElapsedTime(&localElapsedTime, start, stop));
-
-      // Destroy CUDA events
-      CUDACHECK(cudaEventDestroy(start));
-      CUDACHECK(cudaEventDestroy(stop));
+      auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
+      const double localElapsedTime = duration.count();
 
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
-      float elapsedTime;
-      MPICHECK(MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD));
-      if (rank == 0) {
+      double elapsedTime;
+      MPICHECK(MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
+      if (rank == 0)
+      {
         times[j] = localElapsedTime;
       }
     }
 
-    if (rank == 0) {
+    if (rank == 0)
+    {
       std::cout << "Finished benchmark loop" << std::endl;
     }
 
     MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
-    if (rank == 0) {
-      float sum = 0;
-      for (int i = 0; i < num_executions; i++) {
+    if (rank == 0)
+    {
+      double sum = 0;
+      for (int i = 0; i < num_executions; i++)
+      {
         sum += times[i];
       }
-      float average = sum / num_executions;
+      double average = sum / num_executions;
 
       std::ofstream log;
       log.open("run.log", std::ios_base::app);
-      log << "nccl-ata w/ " << bytes << " byte buffer: " << average << " ms" << std::endl;
+      log << "nccl-ata w/ " << bytes << " byte buffer: " << average << " ns" << std::endl;
       log.close();
 
       std::cout << "Finished " << bytes << "-size buffer benchmark" << std::endl;
     }
-    
+
     // Verify that all ranks have the same thing in their recieve buffer
     // CUDACHECK(cudaMemcpy(h_recv_data, d_recv_data, bytes, cudaMemcpyDefault));
     // std::cout << "Rank " << rank << " received data: [";
