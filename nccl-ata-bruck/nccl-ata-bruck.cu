@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
   CUDACHECK(cudaGetDeviceCount(&count));
   if (rank == 0)
   {
-    std::cout << "nccl-ata" << std::endl;
+    std::cout << "nccl-ata-bruck" << std::endl;
     std::cout << "CUDA devices available: " << count << std::endl;
   }
 
@@ -83,13 +83,12 @@ int main(int argc, char *argv[])
   {
     // Send and recieve buffers must be the same size
     const int64_t buffer_size = size * i;
-    const int64_t send_bytes = i * sizeof(int);
-    const int64_t recv_bytes = buffer_size * sizeof(int);
+    const int64_t bytes = buffer_size * sizeof(int);
 
     h_send_data = new int[i];
     h_recv_data = new int[buffer_size];
-    CUDACHECK(cudaMalloc((void **)&d_send_data, send_bytes));
-    CUDACHECK(cudaMalloc((void **)&d_recv_data, recv_bytes));
+    CUDACHECK(cudaMalloc((void **)&d_send_data, bytes));
+    CUDACHECK(cudaMalloc((void **)&d_recv_data, bytes));
 
     // Fill the send buffer with each process rank
     for (int j = 0; j < i; j++)
@@ -97,8 +96,8 @@ int main(int argc, char *argv[])
       h_send_data[j] = rank;
     }
 
-    CUDACHECK(cudaMemcpy(d_send_data, h_send_data, send_bytes, cudaMemcpyDefault));
-    CUDACHECK(cudaMemset(d_recv_data, 0, recv_bytes));
+    CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
+    CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
     if (rank == 0)
     {
       std::cout << "Finished setting buffers" << std::endl;
@@ -107,8 +106,8 @@ int main(int argc, char *argv[])
     // Warm-up loop
     for (int j = 0; j < 5; j++)
     {
-      CUDACHECK(cudaMemcpy(d_send_data, h_send_data, send_bytes, cudaMemcpyDefault));
-      CUDACHECK(cudaMemset(d_recv_data, 0, recv_bytes));
+      CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
+      CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
       CUDACHECK(cudaDeviceSynchronize());
       ncclBruck(2, (char *)d_send_data, i, ncclInt, (char *)d_recv_data, i, ncclInt, comm, stream);
     }
@@ -122,8 +121,8 @@ int main(int argc, char *argv[])
     for (int j = 0; j < num_executions; j++)
     {
       // Reset buffers
-      CUDACHECK(cudaMemcpy(d_send_data, h_send_data, send_bytes, cudaMemcpyDefault));
-      CUDACHECK(cudaMemset(d_recv_data, 0, recv_bytes));
+      CUDACHECK(cudaMemcpy(d_send_data, h_send_data, bytes, cudaMemcpyDefault));
+      CUDACHECK(cudaMemset(d_recv_data, 0, bytes));
       CUDACHECK(cudaDeviceSynchronize());
 
       // Perform all-to-all
@@ -162,7 +161,7 @@ int main(int argc, char *argv[])
 
       std::ofstream log;
       log.open("run.log", std::ios_base::app);
-      log << "nccl-ata w/ " << i * sizeof(int) << " bytes sent per GPU: " << average << " ns" << std::endl;
+      log << "nccl-ata-bruck w/ " << i * sizeof(int) << " bytes sent per GPU: " << average << " ns" << std::endl;
       log.close();
 
       std::cout << "Finished " << i * sizeof(int) << "-size byte benchmark" << std::endl;
