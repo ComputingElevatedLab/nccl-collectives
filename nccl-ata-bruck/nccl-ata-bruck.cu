@@ -129,10 +129,11 @@ int main(int argc, char *argv[])
       auto start = std::chrono::high_resolution_clock::now();
       ncclBruck(2, (char *)d_send_data, i, ncclInt, (char *)d_recv_data, i, ncclInt, comm, stream);
       CUDACHECK(cudaStreamSynchronize(stream));
+      MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
       auto stop = std::chrono::high_resolution_clock::now();
 
       // Compute elapsed time
-      auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
+      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
       const double localElapsedTime = duration.count();
 
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
@@ -161,7 +162,7 @@ int main(int argc, char *argv[])
 
       std::ofstream log;
       log.open("run.log", std::ios_base::app);
-      log << "nccl-ata-bruck w/ " << i * sizeof(int) << " bytes sent per GPU: " << average << " ns" << std::endl;
+      log << std::fixed << "nccl-ata-bruck w/ " << i * sizeof(int) << " bytes sent per GPU: " << average << " ms" << std::endl;
       log.close();
 
       std::cout << "Finished " << i * sizeof(int) << "-size byte benchmark" << std::endl;
