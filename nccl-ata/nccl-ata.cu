@@ -12,6 +12,7 @@
 #include "../common/error-catch.cpp"
 #include "../common/error-catch.cu"
 #include "../common/hostname.cu"
+#include "../common/synchronize.cu"
 
 int main(int argc, char *argv[])
 {
@@ -140,7 +141,8 @@ int main(int argc, char *argv[])
         NCCLCHECK(ncclRecv((void *)&d_recv_data[k], i, ncclInt, k % size, comm, stream));
       }
       NCCLCHECK(ncclGroupEnd());
-      CUDACHECK(cudaStreamSynchronize(stream));
+      ncclStreamSynchronize(stream, comm);
+      MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
       auto stop = std::chrono::high_resolution_clock::now();
 
       // Compute elapsed time

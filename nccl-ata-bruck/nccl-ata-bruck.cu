@@ -13,6 +13,7 @@
 #include "../common/error-catch.cpp"
 #include "../common/error-catch.cu"
 #include "../common/hostname.cu"
+#include "../common/synchronize.cu"
 
 int main(int argc, char *argv[])
 {
@@ -128,7 +129,7 @@ int main(int argc, char *argv[])
       // Perform all-to-all
       auto start = std::chrono::high_resolution_clock::now();
       ncclBruck(2, (char *)d_send_data, i, ncclInt, (char *)d_recv_data, i, ncclInt, comm, stream);
-      CUDACHECK(cudaStreamSynchronize(stream));
+      ncclStreamSynchronize(stream, comm);
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
       auto stop = std::chrono::high_resolution_clock::now();
 
