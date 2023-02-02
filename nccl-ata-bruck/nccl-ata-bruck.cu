@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 
   // Benchmark loop
   const int num_executions = 100;
-  for (int i = 10; i <= 80000; i += 10)
+  for (int i = 100; i <= 80000; i += 100)
   {
     // Send and recieve buffers must be the same size
     const int64_t buffer_size = size * i;
@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
       auto stop = std::chrono::high_resolution_clock::now();
 
       // Compute elapsed time
-      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+      auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
       const float localElapsedTime = duration.count();
 
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
 
       std::ofstream log;
       log.open("run.log", std::ios_base::app);
-      log << std::fixed << "nccl-ata-bruck w/ " << i * sizeof(int) << " bytes sent per GPU: " << average << " ms" << std::endl;
+      log << std::fixed << "nccl-ata w/ " << i * sizeof(int) << " bytes sent per GPU: " << average << " μs" << std::endl;
       log.close();
 
       std::cout << "Finished " << i * sizeof(int) << "-size byte benchmark" << std::endl;
