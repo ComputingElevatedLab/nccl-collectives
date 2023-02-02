@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
     do
     {
       NCCLCHECK(ncclCommGetAsyncError(comm, &state));
-    } while (state == ncclInProgress);
+    } while (state == 7);
     ncclStreamSynchronize(stream, comm);
 
     // Verify that d_bruck_recv_data == d_ata_recv_data
