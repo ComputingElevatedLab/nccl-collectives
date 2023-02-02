@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 
   // Benchmark loop
   const int num_executions = 100;
-  for (int i = 100; i <= 80000; i += 100)
+  for (int i = 1000; i <= 80000; i += 1000)
   {
     // Send and recieve buffers must be the same size
     const int64_t buffer_size = size * i;
