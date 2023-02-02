@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
 
       std::ofstream log;
       log.open("run.log", std::ios_base::app);
-      log << std::fixed << "nccl-ata w/ " << i * sizeof(int) << " bytes sent per GPU: " << average << " μs" << std::endl;
+      log << std::fixed << "nccl-ata-bruck w/ " << i * sizeof(int) << " bytes sent per GPU: " << average << " μs" << std::endl;
       log.close();
 
       std::cout << "Finished " << i * sizeof(int) << "-size byte benchmark" << std::endl;
