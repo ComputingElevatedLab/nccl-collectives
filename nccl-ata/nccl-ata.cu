@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 
   // Benchmark loop
   const int num_executions = 100;
-  for (int i = 10; i <= 20000; i += 10)
+  for (int i = 10; i <= 80000; i += 10)
   {
     // Send and recieve buffers must be the same size
     const int64_t buffer_size = size * i;
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
       std::cout << "Finished warming up" << std::endl;
     }
 
-    std::vector<double> times(num_executions);
+    std::vector<float> times(num_executions);
     for (int j = 0; j < num_executions; j++)
     {
       // Reset buffers
@@ -153,11 +153,11 @@ int main(int argc, char *argv[])
 
       // Compute elapsed time
       auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-      const double localElapsedTime = duration.count();
+      const float localElapsedTime = duration.count();
 
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
-      double elapsedTime;
-      MPICHECK(MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
+      float elapsedTime;
+      MPICHECK(MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD));
       if (rank == 0)
       {
         times[j] = localElapsedTime;
@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
       {
         sum += times[j];
       }
-      double average = sum / num_executions;
+      double average = sum / (num_executions * 1.0);
 
       std::ofstream log;
       log.open("run.log", std::ios_base::app);

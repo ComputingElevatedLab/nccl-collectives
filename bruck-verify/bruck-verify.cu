@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
   log.close();
 
   // Verification loop
-  for (int i = 10; i <= 2000; i += 10)
+  for (int i = 10; i <= 80000; i += 10)
   {
     // Send and recieve buffers must be the same size for bruck
     const int64_t buffer_size = size * i;
