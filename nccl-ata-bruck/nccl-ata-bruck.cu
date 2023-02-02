@@ -129,13 +129,18 @@ int main(int argc, char *argv[])
       // Perform all-to-all
       auto start = std::chrono::high_resolution_clock::now();
       ncclBruck(2, (char *)d_send_data, i, ncclInt, (char *)d_recv_data, i, ncclInt, comm, stream);
+      ncclResult_t state;
+      do
+      {
+        NCCLCHECK(ncclCommGetAsyncError(comm, &state));
+      } while (state == ncclInProgress);
       ncclStreamSynchronize(stream, comm);
-      MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
       auto stop = std::chrono::high_resolution_clock::now();
 
       // Compute elapsed time
       auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
       const double localElapsedTime = duration.count();
+      std::cout << std::fixed << "Rank " << rank << ": local elapsed time " << localElapsedTime << std::endl;
 
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
       double elapsedTime;

@@ -4,6 +4,7 @@
 NODES=10
 GPUS=8
 NPROC=$(($NODES * $GPUS))
+NCCL_DEBUG=WARN
 
 module load nccl
 rm run.log

@@ -141,8 +141,12 @@ int main(int argc, char *argv[])
         NCCLCHECK(ncclRecv((void *)&d_recv_data[k], i, ncclInt, k % size, comm, stream));
       }
       NCCLCHECK(ncclGroupEnd());
+      ncclResult_t state;
+      do
+      {
+        NCCLCHECK(ncclCommGetAsyncError(comm, &state));
+      } while (state == ncclInProgress);
       ncclStreamSynchronize(stream, comm);
-      MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
       auto stop = std::chrono::high_resolution_clock::now();
 
       // Compute elapsed time

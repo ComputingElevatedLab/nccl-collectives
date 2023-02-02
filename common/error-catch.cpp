@@ -6,7 +6,8 @@
 #define MPICHECK(call)                                                                \
     {                                                                                 \
         int mpi_status = call;                                                        \
-        if (0 != mpi_status) {                                                        \
+        if (0 != mpi_status)                                                          \
+        {                                                                             \
             char mpi_error_string[MPI_MAX_ERROR_STRING];                              \
             int mpi_error_string_length = 0;                                          \
             MPI_Error_string(mpi_status, mpi_error_string, &mpi_error_string_length); \
