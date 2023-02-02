@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
       do
       {
         NCCLCHECK(ncclCommGetAsyncError(comm, &state));
-      } while (state == ncclInProgress);
+      } while (state == 7);
       ncclStreamSynchronize(stream, comm);
       auto stop = std::chrono::high_resolution_clock::now();
 

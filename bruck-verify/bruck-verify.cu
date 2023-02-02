@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
     do
     {
       NCCLCHECK(ncclCommGetAsyncError(comm, &state));
-    } while (state == ncclInProgress);
+    } while (state == 7);
     ncclStreamSynchronize(stream, comm);
 
     // Perform bruck w/ synchronization
