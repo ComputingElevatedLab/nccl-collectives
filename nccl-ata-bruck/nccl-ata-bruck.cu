@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 
   // Benchmark loop
   const int num_executions = 100;
-  for (int i = 100; i <= 2000; i += 100)
+  for (int i = 10; i <= 20000; i += 10)
   {
     // Send and recieve buffers must be the same size
     const int64_t buffer_size = size * i;
@@ -140,7 +140,6 @@ int main(int argc, char *argv[])
       // Compute elapsed time
       auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
       const double localElapsedTime = duration.count();
-      std::cout << std::fixed << "Rank " << rank << ": local elapsed time " << localElapsedTime << std::endl;
 
       MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
       double elapsedTime;
