@@ -13,6 +13,7 @@
 #include "../common/error-catch.cu"
 #include "../common/hostname.cu"
 #include "../common/synchronize.cu"
+#include "../common/typesize.cu"
 
 int main(int argc, char *argv[])
 {
@@ -85,6 +86,7 @@ int main(int argc, char *argv[])
     const int64_t buffer_size = size * i;
     const int64_t send_bytes = i * sizeof(int);
     const int64_t recv_bytes = buffer_size * sizeof(int);
+    const size_t rankOffset = i * ncclTypeSize(ncclInt);
 
     h_send_data = new int[i];
     h_recv_data = new int[buffer_size];
@@ -111,10 +113,10 @@ int main(int argc, char *argv[])
       CUDACHECK(cudaMemset(d_recv_data, 0, recv_bytes));
       CUDACHECK(cudaDeviceSynchronize());
       NCCLCHECK(ncclGroupStart());
-      for (int k = 0; k < buffer_size; k++)
+      for (int k = 0; k < size; k++)
       {
-        NCCLCHECK(ncclSend((void *)&d_send_data[k], i, ncclInt, k % size, comm, stream));
-        NCCLCHECK(ncclRecv((void *)&d_recv_data[k], i, ncclInt, k % size, comm, stream));
+        NCCLCHECK(ncclSend(((char *)d_send_data) + k * rankOffset, i, ncclInt, k, comm, stream));
+        NCCLCHECK(ncclRecv(((char *)d_recv_data) + k * rankOffset, i, ncclInt, k, comm, stream));
       }
       NCCLCHECK(ncclGroupEnd());
     }
@@ -135,10 +137,10 @@ int main(int argc, char *argv[])
       // Perform all-to-all
       auto start = std::chrono::high_resolution_clock::now();
       NCCLCHECK(ncclGroupStart());
-      for (int k = 0; k < buffer_size; k++)
+      for (int k = 0; k < size; k++)
       {
-        NCCLCHECK(ncclSend((void *)&d_send_data[k], i, ncclInt, k % size, comm, stream));
-        NCCLCHECK(ncclRecv((void *)&d_recv_data[k], i, ncclInt, k % size, comm, stream));
+        NCCLCHECK(ncclSend(((char *)d_send_data) + k * rankOffset, i, ncclInt, k, comm, stream));
+        NCCLCHECK(ncclRecv(((char *)d_recv_data) + k * rankOffset, i, ncclInt, k, comm, stream));
       }
       NCCLCHECK(ncclGroupEnd());
       ncclResult_t state;

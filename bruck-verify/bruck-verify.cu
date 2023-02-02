@@ -81,12 +81,17 @@ int main(int argc, char *argv[])
   int *d_bruck_send_data;
   int *d_bruck_recv_data;
 
+  std::ofstream log;
+  log.open("test.txt", std::ofstream::out | std::ofstream::trunc);
+  log.close();
+
   // Verification loop
   for (int i = 10; i <= 2000; i += 10)
   {
     // Send and recieve buffers must be the same size for bruck
     const int64_t buffer_size = size * i;
     const int64_t bytes = buffer_size * sizeof(int);
+    size_t rankOffset = i * ncclTypeSize(ncclInt);
 
     // Allocate host memory
     h_send_data = new int[i];
@@ -120,10 +125,10 @@ int main(int argc, char *argv[])
     // Perform ata w/ synchronization
     ncclResult_t state;
     NCCLCHECK(ncclGroupStart());
-    for (int k = 0; k < buffer_size; k++)
+    for (int j = 0; j < size; j++)
     {
-      NCCLCHECK(ncclSend((void *)&d_ata_send_data[k], i, ncclInt, k % size, comm, stream));
-      NCCLCHECK(ncclRecv((void *)&d_ata_recv_data[k], i, ncclInt, k % size, comm, stream));
+      NCCLCHECK(ncclSend(((char *)d_ata_send_data) + j * rankOffset, i, ncclInt, j, comm, stream));
+      NCCLCHECK(ncclRecv(((char *)d_ata_recv_data) + j * rankOffset, i, ncclInt, j, comm, stream));
     }
     NCCLCHECK(ncclGroupEnd());
     do
@@ -163,16 +168,18 @@ int main(int argc, char *argv[])
       std::cout << "Rank " << rank << ": failed for " << i * sizeof(int) << " bytes sent" << std::endl;
     }
 
-    if (rank == 0) {
-      std::ofstream log;
+    if (rank == 0)
+    {
       log.open("verify.log", std::ios_base::app);
       log << std::fixed << "ata w/ " << i * sizeof(int) << " bytes:";
-      for (int j = 0; j < buffer_size; j++) {
+      for (int j = 0; j < buffer_size; j++)
+      {
         log << std::fixed << " " << h_ata_recv_data[j];
       }
       log << "\n";
       log << std::fixed << "bruck w/ " << i * sizeof(int) << " bytes:";
-      for (int j = 0; j < buffer_size; j++) {
+      for (int j = 0; j < buffer_size; j++)
+      {
         log << std::fixed << " " << h_bruck_recv_data[j];
       }
       log << "\n";
