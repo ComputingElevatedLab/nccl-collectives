@@ -100,12 +100,10 @@ int main(int argc, char *argv[])
   cudaMemcpy(d_send_data, h_send_data, buffer_bytes, cudaMemcpyHostToDevice);
 
   // NCCL all to all
-  int nRanks;
-  ncclCommCount(comm, &nRanks);
   const size_t rankOffset = send_count * ncclTypeSize(ncclInt);
   auto start = std::chrono::high_resolution_clock::now();
   ncclGroupStart();
-  for (int r = 0; r < nRanks; r++)
+  for (int r = 0; r < world_size; r++)
   {
     ncclSend(((char *)d_send_data) + r * rankOffset, send_count, ncclInt, r, comm, stream);
     ncclRecv(((char *)d_recv_data) + r * rankOffset, send_count, ncclInt, r, comm, stream);
@@ -121,14 +119,6 @@ int main(int argc, char *argv[])
 
   // Verify against the verification data
   cudaMemcpy(h_recv_data, d_recv_data, buffer_bytes, cudaMemcpyDeviceToHost);
-  cudaDeviceSynchronize();
-
-  std::cout << "Rank " << mpi_rank << ": received data: [";
-  for (int j = 0; j < buffer_size; j++)
-  {
-    std::cout << " " << h_recv_data[j] << " ";
-  }
-  std::cout << "]" << std::endl;
 
   bool passed = true;
   for (int i = 0; i < buffer_size; i++)
@@ -141,7 +131,7 @@ int main(int argc, char *argv[])
 
   if (passed)
   {
-    std::cout << "Rank " << mpi_rank << " passed: [";
+    std::cout << "Rank " << mpi_rank << " passed:\t[";
     for (int j = 0; j < buffer_size; j++)
     {
       std::cout << " " << h_recv_data[j] << " ";
@@ -150,7 +140,7 @@ int main(int argc, char *argv[])
   }
   else
   {
-    std::cout << "Rank " << mpi_rank << " failed: [";
+    std::cout << "Rank " << mpi_rank << " failed:\t[";
     for (int j = 0; j < buffer_size; j++)
     {
       std::cout << " " << h_recv_data[j] << " ";

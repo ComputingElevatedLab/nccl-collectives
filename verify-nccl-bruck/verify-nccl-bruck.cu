@@ -100,9 +100,6 @@ int main(int argc, char *argv[])
   cudaMemcpy(d_send_data, h_send_data, buffer_bytes, cudaMemcpyHostToDevice);
 
   // NCCL all to all
-  int nRanks;
-  ncclCommCount(comm, &nRanks);
-  const size_t rankOffset = send_count * ncclTypeSize(ncclInt);
   auto start = std::chrono::high_resolution_clock::now();
   ncclBruck(2, (char *)d_send_data, send_count, ncclInt, (char *)d_recv_data, send_count, ncclInt, comm, stream);
   auto stop = std::chrono::high_resolution_clock::now();
@@ -115,7 +112,6 @@ int main(int argc, char *argv[])
 
   // Verify against the verification data
   cudaMemcpy(h_recv_data, d_recv_data, buffer_bytes, cudaMemcpyDeviceToHost);
-  cudaDeviceSynchronize();
 
   bool passed = true;
   for (int i = 0; i < buffer_size; i++)
@@ -128,7 +124,7 @@ int main(int argc, char *argv[])
 
   if (passed)
   {
-    std::cout << "Rank " << mpi_rank << " passed: [";
+    std::cout << "rank " << mpi_rank << " passed:\t[";
     for (int j = 0; j < buffer_size; j++)
     {
       std::cout << " " << h_recv_data[j] << " ";
@@ -137,7 +133,7 @@ int main(int argc, char *argv[])
   }
   else
   {
-    std::cout << "Rank " << mpi_rank << " failed: [";
+    std::cout << "rank " << mpi_rank << " failed:\t[";
     for (int j = 0; j < buffer_size; j++)
     {
       std::cout << " " << h_recv_data[j] << " ";
@@ -149,7 +145,7 @@ int main(int argc, char *argv[])
 
   if (mpi_rank == 0)
   {
-    std::cout << std::fixed << "Elapsed time: " << elapsedTime << " μs" << std::endl;
+    std::cout << std::fixed << "all-to-all elapsed time: " << elapsedTime << " μs" << std::endl;
   }
 
   // Free all allocated memory
