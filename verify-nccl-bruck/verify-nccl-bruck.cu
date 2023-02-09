@@ -117,13 +117,6 @@ int main(int argc, char *argv[])
   cudaMemcpy(h_recv_data, d_recv_data, buffer_bytes, cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
 
-  std::cout << "Rank " << mpi_rank << ": received data: [";
-  for (int j = 0; j < buffer_size; j++)
-  {
-    std::cout << " " << h_recv_data[j] << " ";
-  }
-  std::cout << "]" << std::endl;
-
   bool passed = true;
   for (int i = 0; i < buffer_size; i++)
   {
@@ -135,12 +128,24 @@ int main(int argc, char *argv[])
 
   if (passed)
   {
-    std::cout << "Rank " << mpi_rank << ": passed" << std::endl;
+    std::cout << "Rank " << mpi_rank << " passed: [";
+    for (int j = 0; j < buffer_size; j++)
+    {
+      std::cout << " " << h_recv_data[j] << " ";
+    }
+    std::cout << "]" << std::endl;
   }
   else
   {
-    std::cout << "Rank " << mpi_rank << ": failed" << std::endl;
+    std::cout << "Rank " << mpi_rank << " failed: [";
+    for (int j = 0; j < buffer_size; j++)
+    {
+      std::cout << " " << h_recv_data[j] << " ";
+    }
+    std::cout << "]" << std::endl;
   }
+
+  MPI_Barrier(MPI_COMM_WORLD);
 
   if (mpi_rank == 0)
   {
