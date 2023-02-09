@@ -150,7 +150,7 @@ int main(int argc, char *argv[])
 
   if (mpi_rank == 0)
   {
-    std::cout << "Elapsed time: " << elapsedTime << " us" << std::endl;
+    std::cout << std::fixed << "Elapsed time: " << elapsedTime << " μs" << std::endl;
   }
 
   // Free all allocated memory
