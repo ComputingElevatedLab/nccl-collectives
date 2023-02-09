@@ -7,7 +7,7 @@
 
 #include "../common/error-catch.cpp"
 
-int myPow(int x, unsigned int p)
+int mpi_pow(int x, unsigned int p)
 {
 	if (p == 0)
 	{
@@ -18,7 +18,7 @@ int myPow(int x, unsigned int p)
 		return x;
 	}
 
-	int tmp = myPow(x, p / 2);
+	int tmp = mpi_pow(x, p / 2);
 	if (p % 2 == 0)
 	{
 		return tmp * tmp;
@@ -52,8 +52,8 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
 
 	int unit_size = sendcount * typesize;
 	int w = std::ceil(std::log(nprocs) / std::log(r)); // calculate the number of digits when using r-representation
-	int nlpow = myPow(r, w - 1);
-	int d = (myPow(r, w) - nprocs) / nlpow; // calculate the number of highest digits
+	int nlpow = mpi_pow(r, w - 1);
+	int d = (mpi_pow(r, w) - nprocs) / nlpow; // calculate the number of highest digits
 
 	std::memcpy(recvbuf, sendbuf, nprocs * unit_size);
 	std::memcpy(&sendbuf[(nprocs - rank) * unit_size], recvbuf, rank * unit_size);
@@ -92,7 +92,7 @@ void uniform_radix_r_bruck(int r, char *sendbuf, int sendcount, MPI_Datatype sen
 			}
 
 			// send and receive
-			int distance = z * myPow(r, x);						 // pow(1, 51) = 51, int d = pow(1, 51); // 50
+			int distance = z * mpi_pow(r, x);					 // pow(1, 51) = 51, int d = pow(1, 51); // 50
 			int recv_proc = (rank - distance + nprocs) % nprocs; // receive data from rank - 2^step process
 			int send_proc = (rank + distance) % nprocs;			 // send data from rank + 2^k process
 			long long comm_size = di * unit_size;

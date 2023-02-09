@@ -10,7 +10,7 @@
 #include "error-catch.cu"
 #include "typesize.cu"
 
-int myPow(int x, unsigned int p)
+int nccl_pow(int x, unsigned int p)
 {
 	if (p == 0)
 	{
@@ -21,7 +21,7 @@ int myPow(int x, unsigned int p)
 		return x;
 	}
 
-	int tmp = myPow(x, p / 2);
+	int tmp = nccl_pow(x, p / 2);
 	if (p % 2 == 0)
 	{
 		return tmp * tmp;
@@ -44,8 +44,8 @@ void ncclBruck(int r, char *d_send_data, int send_count, ncclDataType_t send_typ
 
 	int unit_size = send_count * ncclTypeSize(send_type);
 	int w = std::ceil(std::log(size) / std::log(r));
-	int nlpow = myPow(r, w - 1);
-	int d = (myPow(r, w) - size) / nlpow;
+	int nlpow = nccl_pow(r, w - 1);
+	int d = (nccl_pow(r, w) - size) / nlpow;
 
 	CUDACHECK(cudaMemcpy(d_recv_data, d_send_data, size * unit_size, cudaMemcpyDefault));
 	CUDACHECK(cudaMemcpy(&d_send_data[(size - rank) * unit_size], d_recv_data, rank * unit_size, cudaMemcpyDefault));
@@ -90,7 +90,7 @@ void ncclBruck(int r, char *d_send_data, int send_count, ncclDataType_t send_typ
 				}
 			}
 
-			int distance = z * myPow(r, x);
+			int distance = z * mpi_pow(r, x);
 			int recv_rank = (rank - distance + size) % size;
 			int send_rank = (rank + distance) % size;
 
