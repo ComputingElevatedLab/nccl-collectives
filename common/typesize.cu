@@ -1,3 +1,4 @@
+#pragma once
 #include "nccl.h"
 
 size_t ncclTypeSize(ncclDataType_t type)

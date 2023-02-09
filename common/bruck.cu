@@ -90,7 +90,7 @@ void ncclBruck(int r, char *d_send_data, int send_count, ncclDataType_t send_typ
 				}
 			}
 
-			int distance = z * mpi_pow(r, x);
+			int distance = z * nccl_pow(r, x);
 			int recv_rank = (rank - distance + size) % size;
 			int send_rank = (rank + distance) % size;
 
