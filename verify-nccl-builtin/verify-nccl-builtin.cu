@@ -1,4 +1,5 @@
 // Source: https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/examples.html
+#include <chrono>
 #include <iostream>
 
 #include <mpi.h>
@@ -102,14 +103,21 @@ int main(int argc, char *argv[])
   int nRanks;
   ncclCommCount(comm, &nRanks);
   const size_t rankOffset = send_count * ncclTypeSize(ncclInt);
-  // ncclGroupStart();
-  // for (int r = 0; r < nRanks; r++)
-  // {
-  //   ncclSend(((char *)d_send_data) + r * rankOffset, send_count, ncclInt, r, comm, stream);
-  //   ncclRecv(((char *)d_recv_data) + r * rankOffset, send_count, ncclInt, r, comm, stream);
-  // }
-  // ncclGroupEnd();
-  ncclBruck(2, (char *)d_send_data, send_count, ncclInt, (char *)d_recv_data, send_count, ncclInt, comm, stream);
+  auto start = std::chrono::high_resolution_clock::now();
+  ncclGroupStart();
+  for (int r = 0; r < nRanks; r++)
+  {
+    ncclSend(((char *)d_send_data) + r * rankOffset, send_count, ncclInt, r, comm, stream);
+    ncclRecv(((char *)d_recv_data) + r * rankOffset, send_count, ncclInt, r, comm, stream);
+  }
+  ncclGroupEnd();
+  auto stop = std::chrono::high_resolution_clock::now();
+
+  // Compute elapsed time
+  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+  const float localElapsedTime = duration.count();
+  float elapsedTime;
+  MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
 
   // Verify against the verification data
   cudaMemcpy(h_recv_data, d_recv_data, buffer_bytes, cudaMemcpyDeviceToHost);
@@ -138,6 +146,11 @@ int main(int argc, char *argv[])
   else
   {
     std::cout << "Rank " << mpi_rank << ": failed" << std::endl;
+  }
+
+  if (mpi_rank == 0)
+  {
+    std::cout << "Elapsed time: " << elapsedTime << " us" << std::endl;
   }
 
   // Free all allocated memory

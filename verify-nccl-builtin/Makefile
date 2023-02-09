@@ -1,6 +1,6 @@
 export NCCL_DEBUG=WARN
 
-TARGET = main
+TARGET = verify-nccl-builtin
 NVCC_FLAGS += -dlto -lineinfo
 LDFLAGS = -lmpi -lnccl -I/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -I/usr/lib/x86_64-linux-gnu/openmpi/include -L/usr/lib/x86_64-linux-gnu/openmpi/lib
 SRC = $(TARGET).cu
