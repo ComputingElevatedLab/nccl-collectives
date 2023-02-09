@@ -8,6 +8,10 @@ THETA_FLAGS = -L/lus/theta-fs0/software/thetagpu/nccl/nccl-v2.12.12-1_gcc-9.4.0-
 SRC = $(TARGET).cu
 
 build:
+	nvcc $(NVCC_FLAGS) $(SRC) -o $(TARGET).out $(LDFLAGS)
+
+build_theta:
+	module load nccl
 	nvcc $(NVCC_FLAGS) $(SRC) -o $(TARGET).out $(LDFLAGS) $(THETA_FLAGS)
 
 test:
@@ -18,7 +22,7 @@ test_theta:
 
 run: build test
 
-theta: build test_theta
+run_theta: build_theta test_theta
 
 debug:
 	mpiexec -n 2 konsole -e gdb ./$(TARGET).out
