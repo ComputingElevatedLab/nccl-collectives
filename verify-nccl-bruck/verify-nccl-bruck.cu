@@ -107,6 +107,7 @@ int main(int argc, char *argv[])
     auto start = std::chrono::high_resolution_clock::now();
     ncclBruck(2, (char *)d_send_data, send_count, ncclInt, (char *)d_recv_data, send_count, ncclInt, comm, stream);
     auto stop = std::chrono::high_resolution_clock::now();
+    ncclStreamSynchronize(stream, comm);
 
     // Compute elapsed time
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
