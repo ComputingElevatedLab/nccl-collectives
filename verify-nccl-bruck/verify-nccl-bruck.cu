@@ -118,6 +118,7 @@ int main(int argc, char *argv[])
     // Verify against the verification data
     cudaMemcpy(h_recv_data, d_recv_data, buffer_bytes, cudaMemcpyDeviceToHost);
 
+    MPI_Barrier(MPI_COMM_WORLD);
     bool passed = true;
     for (int i = 0; i < buffer_size; i++)
     {
