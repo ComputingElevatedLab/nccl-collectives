@@ -8,6 +8,7 @@
 #include "nccl.h"
 
 #include "error-catch.cu"
+#include "synchronize.cu"
 #include "typesize.cu"
 
 int nccl_pow(int x, unsigned int p)
@@ -72,7 +73,6 @@ void ncclBruck(int r, char *d_send_data, int send_count, ncclDataType_t send_typ
 	char *temp_buffer;
 	CUDACHECK(cudaMalloc((void **)&temp_buffer, nlpow * unit_size));
 
-	NCCLCHECK(ncclGroupStart());
 	for (int x = 0; x < w; x++)
 	{
 		int ze = (x == w - 1) ? r - d : r;
@@ -95,8 +95,11 @@ void ncclBruck(int r, char *d_send_data, int send_count, ncclDataType_t send_typ
 			int recv_rank = (rank - distance + size) % size;
 			int send_rank = (rank + distance) % size;
 
+			NCCLCHECK(ncclGroupStart());
 			NCCLCHECK(ncclSend(temp_buffer, di * unit_size, send_type, send_rank, comm, stream));
 			NCCLCHECK(ncclRecv(d_recv_data, di * unit_size, recv_type, recv_rank, comm, stream));
+			NCCLCHECK(ncclGroupEnd());
+			ncclStreamSynchronize(stream, comm);
 
 			for (int i = 0; i < di; i++)
 			{
@@ -104,7 +107,6 @@ void ncclBruck(int r, char *d_send_data, int send_count, ncclDataType_t send_typ
 			}
 		}
 	}
-	NCCLCHECK(ncclGroupEnd());
 
 	for (int i = 0; i < size; i++)
 	{
