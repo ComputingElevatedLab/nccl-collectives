@@ -41,7 +41,6 @@ int main(int argc, char **argv)
 			{
 				int sendrank = (rank + distance) % size;
 				int recvrank = (rank - distance + size) % size;
-				std::cout << "Rank " << rank << ": sending to " << sendrank << " recieving from " << recvrank << std::endl;
 				MPI_Sendrecv(send_data, count, MPI_CHAR, sendrank, 0, recv_data, count, MPI_CHAR, recvrank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				distance /= 2;
 			}
@@ -65,7 +64,6 @@ int main(int argc, char **argv)
 			{
 				int sendrank = (rank + distance) % size;
 				int recvrank = (rank - distance + size) % size;
-				std::cout << "Rank " << rank << ": sending to " << sendrank << " recieving from " << recvrank << std::endl;
 				MPI_Sendrecv(send_data, bytes, MPI_CHAR, sendrank, 0, recv_data, bytes, MPI_CHAR, recvrank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				distance *= 2;
 			}

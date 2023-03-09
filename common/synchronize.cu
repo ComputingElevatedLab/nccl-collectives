@@ -55,4 +55,5 @@ int cudaTest(cudaStream_t stream)
     std::cout << "CUDA Error: cudaStreamQuery returned " << cudaErr << std::endl;
     return 1;
   }
+  return 0;
 }
