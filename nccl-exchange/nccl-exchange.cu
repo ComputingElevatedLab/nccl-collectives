@@ -25,7 +25,7 @@ int main(int argc, char **argv)
     CUDACHECK(cudaGetDeviceCount(&device_size));
     if (rank == 0)
     {
-        std::cout << "nccl-pingpong" << std::endl;
+        std::cout << "nccl-exchange" << std::endl;
         std::cout << "CUDA devices available: " << device_size << std::endl;
         std::cout << "MPI world size: " << size << std::endl;
     }
@@ -67,12 +67,12 @@ int main(int argc, char **argv)
     NCCLCHECK(ncclCommInitRank(&comm, size, id, rank));
 
     // Host variables
-    int *h_send_data;
-    int *h_recv_data;
+    char *h_send_data;
+    char *h_recv_data;
 
     // Device variables
-    int *d_send_data;
-    int *d_recv_data;
+    char *d_send_data;
+    char *d_recv_data;
 
     int ite_count = 1;
     int loopCount = std::ceil(std::log2(size));
@@ -81,8 +81,8 @@ int main(int argc, char **argv)
     {
         int count = 32;
         int bytes = count * sizeof(char);
-        h_send_data = new int[count];
-        h_recv_data = new int[count];
+        h_send_data = new char[count];
+        h_recv_data = new char[count];
         std::fill_n(h_send_data, count, rank);
         std::fill_n(h_recv_data, count, -1);
 
@@ -100,13 +100,14 @@ int main(int argc, char **argv)
                 int sendrank = (rank + distance) % size;
                 int recvrank = (rank - distance + size) % size;
                 ncclGroupStart();
-                NCCLCHECK(ncclSend((char *)d_send_data, count, ncclInt, sendrank, comm, stream));
-                NCCLCHECK(ncclRecv((char *)d_recv_data, count, ncclInt, recvrank, comm, stream));
+                NCCLCHECK(ncclSend((char *)d_send_data, count, ncclChar, sendrank, comm, stream));
+                NCCLCHECK(ncclRecv((char *)d_recv_data, count, ncclChar, recvrank, comm, stream));
                 ncclGroupEnd();
                 distance /= 2;
             }
             ncclStreamSynchronize(stream, comm);
             double stop = MPI_Wtime();
+
             const double localElapsedTime = stop - start;
             double elapsedTime;
             MPICHECK(MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
@@ -114,6 +115,14 @@ int main(int argc, char **argv)
             {
                 std::cout << "Warm up descending: " << count << " elements sent in " << elapsedTime << " seconds" << std::endl;
             }
+
+            // cudaMemcpy(h_recv_data, d_recv_data, bytes, cudaMemcpyDeviceToHost);
+            // std::cout << "Rank " << rank << " recieved data:\t[";
+            // for (int i = 0; i < count; i++)
+            // {
+            //     std::cout << " " << h_recv_data[i] << " ";
+            // }
+            // std::cout << "]" << std::endl;
         }
 
         MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
@@ -127,11 +136,12 @@ int main(int argc, char **argv)
                 int sendrank = (rank + distance) % size;
                 int recvrank = (rank - distance + size) % size;
                 ncclGroupStart();
-                NCCLCHECK(ncclSend((char *)d_send_data, count, ncclInt, sendrank, comm, stream));
-                NCCLCHECK(ncclRecv((char *)d_recv_data, count, ncclInt, recvrank, comm, stream));
+                NCCLCHECK(ncclSend((char *)d_send_data, count, ncclChar, sendrank, comm, stream));
+                NCCLCHECK(ncclRecv((char *)d_recv_data, count, ncclChar, recvrank, comm, stream));
                 ncclGroupEnd();
                 distance *= 2;
             }
+            ncclStreamSynchronize(stream, comm);
             double stop = MPI_Wtime();
 
             const double localElapsedTime = stop - start;
@@ -141,6 +151,14 @@ int main(int argc, char **argv)
             {
                 std::cout << "Warm up ascending: " << count << " elements sent in " << elapsedTime << " seconds" << std::endl;
             }
+
+            // cudaMemcpy(h_recv_data, d_recv_data, bytes, cudaMemcpyDeviceToHost);
+            // std::cout << "Rank " << rank << " recieved data:\t[";
+            // for (int i = 0; i < count; i++)
+            // {
+            //     std::cout << " " << h_recv_data[i] << " ";
+            // }
+            // std::cout << "]" << std::endl;
         }
 
         MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
@@ -154,8 +172,8 @@ int main(int argc, char **argv)
     for (int count = 32; count <= 8192; count *= 2)
     {
         int bytes = count * sizeof(char);
-        h_send_data = new int[count];
-        h_recv_data = new int[count];
+        h_send_data = new char[count];
+        h_recv_data = new char[count];
         std::fill_n(h_send_data, count, rank);
         std::fill_n(h_recv_data, count, -1);
 
@@ -173,11 +191,12 @@ int main(int argc, char **argv)
                 int sendrank = (rank + distance) % size;
                 int recvrank = (rank - distance + size) % size;
                 ncclGroupStart();
-                NCCLCHECK(ncclSend((char *)d_send_data, count, ncclInt, sendrank, comm, stream));
-                NCCLCHECK(ncclRecv((char *)d_recv_data, count, ncclInt, recvrank, comm, stream));
+                NCCLCHECK(ncclSend((char *)d_send_data, count, ncclChar, sendrank, comm, stream));
+                NCCLCHECK(ncclRecv((char *)d_recv_data, count, ncclChar, recvrank, comm, stream));
                 ncclGroupEnd();
                 distance /= 2;
             }
+            ncclStreamSynchronize(stream, comm);
             double stop = MPI_Wtime();
 
             const double localElapsedTime = stop - start;
@@ -200,11 +219,12 @@ int main(int argc, char **argv)
                 int sendrank = (rank + distance) % size;
                 int recvrank = (rank - distance + size) % size;
                 ncclGroupStart();
-                NCCLCHECK(ncclSend((char *)d_send_data, count, ncclInt, sendrank, comm, stream));
-                NCCLCHECK(ncclRecv((char *)d_recv_data, count, ncclInt, recvrank, comm, stream));
+                NCCLCHECK(ncclSend((char *)d_send_data, count, ncclChar, sendrank, comm, stream));
+                NCCLCHECK(ncclRecv((char *)d_recv_data, count, ncclChar, recvrank, comm, stream));
                 ncclGroupEnd();
                 distance *= 2;
             }
+            ncclStreamSynchronize(stream, comm);
             double stop = MPI_Wtime();
 
             const double localElapsedTime = stop - start;
