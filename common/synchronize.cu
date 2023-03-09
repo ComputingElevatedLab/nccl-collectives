@@ -41,3 +41,18 @@ int ncclStreamSynchronize(cudaStream_t stream, ncclComm_t comm)
     sched_yield();
   }
 }
+
+int cudaTest(cudaStream_t stream)
+{
+  cudaError_t cudaErr = cudaStreamQuery(stream);
+  if (cudaErr == cudaSuccess)
+  {
+    std::cout << "CUDA Success" << std::endl;
+    return 0;
+  }
+  else if (cudaErr != cudaErrorNotReady)
+  {
+    std::cout << "CUDA Error: cudaStreamQuery returned " << cudaErr << std::endl;
+    return 1;
+  }
+}
