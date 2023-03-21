@@ -115,6 +115,10 @@ int main(int argc, char **argv)
             const double localElapsedTime = stop - start;
             double elapsedTime;
             MPICHECK(MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
+            if (rank == 0)
+            {
+                std::cout << "Warm up ascending: " << count << " elements sent in " << elapsedTime << " seconds" << std::endl;
+            }
         }
 
         MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
