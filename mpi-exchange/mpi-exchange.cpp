@@ -1,150 +1,81 @@
 #include <cmath>
-#include <iomanip>
-#include <iostream>
-
 #include "mpi.h"
 
-#include "../common/error-catch.cpp"
+static int rank, nprocs;
+
+void running_test(int loopCount, int iteCount, int warmup);
+void exchange_ascending(int loopCount, int mesgsize, char* sendbuf, char* recvbuf);
+void exchange_descending(int loopCount, int mesgsize, char* sendbuf, char* recvbuf);
 
 int main(int argc, char **argv)
 {
-	// Initialize MPI
-	MPICHECK(MPI_Init(&argc, &argv));
+    // MPI Initial
+    if (MPI_Init(&argc, &argv) != MPI_SUCCESS)
+        std::cout << "ERROR: MPI_Init error\n" << std::endl;
+    if (MPI_Comm_size(MPI_COMM_WORLD, &nprocs) != MPI_SUCCESS)
+    	std::cout << "ERROR: MPI_Comm_size error\n" << std::endl;
+    if (MPI_Comm_rank(MPI_COMM_WORLD, &rank) != MPI_SUCCESS)
+    	std::cout << "ERROR: MPI_Comm_rank error\n" << std::endl;
 
-	// Set MPI size and rank
-	int size;
-	int rank;
-	MPICHECK(MPI_Comm_size(MPI_COMM_WORLD, &size));
-	MPICHECK(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
-	std::cout << std::setiosflags(std::ios_base::fixed);
+    int loopCount = std::ceil(std::log2(nprocs));
 
-	int ite_count = 1;
-	int loopCount = std::ceil(std::log2(size));
 
-	char *send_data;
-	char *recv_data;
-
-	// Warm up
-	{
-		int count = 32;
-		int bytes = count * sizeof(char);
-		send_data = (char *)malloc(bytes);
-		recv_data = (char *)malloc(bytes);
-		std::fill_n(send_data, count, rank);
-		std::fill_n(recv_data, 4, -1);
-
-		for (int i = 0; i < ite_count; i++)
-		{
-			double start = MPI_Wtime();
-			int distance = std::pow(2, loopCount - 1);
-			for (int i = 0; i < loopCount; i++)
-			{
-				int sendrank = (rank + distance) % size;
-				int recvrank = (rank - distance + size) % size;
-				MPI_Sendrecv(send_data, count, MPI_CHAR, sendrank, 0, recv_data, count, MPI_CHAR, recvrank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				distance /= 2;
-			}
-			double stop = MPI_Wtime();
-			const double localElapsedTime = stop - start;
-			double elapsedTime;
-			MPICHECK(MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
-			if (rank == 0)
-			{
-				std::cout << "Warm up descending: " << count << " elements sent in " << elapsedTime << " seconds" << std::endl;
-			}
-		}
-
-		MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
-
-		for (int i = 0; i < ite_count; i++)
-		{
-			double start = MPI_Wtime();
-			int distance = 1;
-			for (int i = 0; i < loopCount; i++)
-			{
-				int sendrank = (rank + distance) % size;
-				int recvrank = (rank - distance + size) % size;
-				MPI_Sendrecv(send_data, bytes, MPI_CHAR, sendrank, 0, recv_data, bytes, MPI_CHAR, recvrank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				distance *= 2;
-			}
-			double stop = MPI_Wtime();
-
-			const double localElapsedTime = stop - start;
-			double elapsedTime;
-			MPICHECK(MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
-			if (rank == 0)
-			{
-				std::cout << "Warm up ascending: " << count << " elements sent in " << elapsedTime << " seconds" << std::endl;
-			}
-		}
-
-		MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
-		delete[] send_data;
-		delete[] recv_data;
-	}
-
-	// Actual test
-	for (int count = 32; count <= 8192; count *= 2)
-	{
-		int bytes = count * sizeof(char);
-		send_data = (char *)malloc(bytes);
-		recv_data = (char *)malloc(bytes);
-		std::fill_n(send_data, count, rank);
-		std::fill_n(recv_data, 4, -1);
-
-		for (int i = 0; i < ite_count; i++)
-		{
-			double start = MPI_Wtime();
-			int distance = std::pow(2, loopCount - 1);
-			for (int i = 0; i < loopCount; i++)
-			{
-				int sendrank = (rank + distance) % size;
-				int recvrank = (rank - distance + size) % size;
-				MPI_Sendrecv(send_data, bytes, MPI_CHAR, sendrank, 0, recv_data, bytes, MPI_CHAR, recvrank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				distance /= 2;
-			}
-			double stop = MPI_Wtime();
-
-			const double localElapsedTime = stop - start;
-			double elapsedTime;
-			MPICHECK(MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
-			if (rank == 0)
-			{
-				std::cout << "descending: " << count << " elements sent in " << elapsedTime << " seconds" << std::endl;
-			}
-		}
-
-		MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
-
-		for (int i = 0; i < ite_count; i++)
-		{
-			double start = MPI_Wtime();
-			int distance = 1;
-			for (int i = 0; i < loopCount; i++)
-			{
-				int sendrank = (rank + distance) % size;
-				int recvrank = (rank - distance + size) % size;
-
-				MPI_Sendrecv(send_data, bytes, MPI_CHAR, sendrank, 0, recv_data, bytes, MPI_CHAR, recvrank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-				distance *= 2;
-			}
-			double stop = MPI_Wtime();
-
-			const double localElapsedTime = stop - start;
-			double elapsedTime;
-			MPICHECK(MPI_Reduce(&localElapsedTime, &elapsedTime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
-			if (rank == 0)
-			{
-				std::cout << "ascending: " << count << " elements sent in " << elapsedTime << " seconds" << std::endl;
-			}
-		}
-
-		MPICHECK(MPI_Barrier(MPI_COMM_WORLD));
-		delete[] send_data;
-		delete[] recv_data;
-	}
+    // running test
+    running_test(loopCount, 1, 0);
 
 	MPI_Finalize();
-	return 0;
+    return 0;
+}
+
+void running_test(int loopCount, int iteCount, int warmup) {
+
+    for (int mesgsize = 2; mesgsize <= 4; mesgsize *= 2) {
+
+        char * sendbuf = (char*)malloc(mesgsize*sizeof(char));
+    	for (int i = 0; i < mesgsize; i++)
+    		sendbuf[i] = rank;
+    	char * recvbuf = (char*)malloc(mesgsize*sizeof(char));
+
+		for (int i = 0; i < iteCount; i++) {
+			double start = MPI_Wtime();
+			exchange_ascending(loopCount, mesgsize, sendbuf, recvbuf);
+			double end = MPI_Wtime();
+			double time = end - start;
+		}
+
+		free(sendbuf);
+		free(recvbuf);
+    }
+}
+
+void exchange_ascending(int loopCount, int mesgsize, char* sendbuf, char* recvbuf) {
+
+	int distance = 1;
+	for (int i = 0; i < loopCount; i++) {
+		int sendrank = (rank + distance) % nprocs;
+		int recvrank = (rank - distance + nprocs) % nprocs;
+
+		MPI_Sendrecv(sendbuf, mesgsize, MPI_CHAR, sendrank, 0, recvbuf, mesgsize, MPI_CHAR, recvrank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+		distance *= 2;
+	}
+
+    std::cout << std::fixed << "Rank " << rank << " recv buffer on line " << __LINE__ << ":\t[";
+    for (int j = 0; j < mesgsize; j++)
+    {
+        std::cout << " " << (int) recvbuf[j] << " ";
+    }
+    std::cout << "]" << std::endl;
+}
+
+void exchange_descending(int loopCount, int mesgsize, char* sendbuf, char* recvbuf) {
+	int distance = std::pow(2, loopCount-1);
+	for (int i = 0; i < loopCount; i++) {
+		int sendrank = (rank + distance) % nprocs;
+		int recvrank = (rank - distance + nprocs) % nprocs;
+
+		MPI_Sendrecv(sendbuf, mesgsize, MPI_CHAR, sendrank, 0, recvbuf, mesgsize, MPI_CHAR, recvrank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+		distance /= 2;
+	}
 }
